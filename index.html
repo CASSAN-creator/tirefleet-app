@@ -1,0 +1,2662 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>TireFleet Pro | Control Multi-Cliente de Llantas y Flotilla</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            navy: {
+              950: '#060a12',
+              900: '#0f172a',
+              800: '#1e293b',
+              700: '#334155',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #94a3b8;
+      border-radius: 9999px;
+    }
+    .tire-node {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .tire-node:active {
+      transform: scale(0.98);
+    }
+    @keyframes pulse-border {
+      0%, 100% { border-color: #ef4444; }
+      50% { border-color: #fca5a5; }
+    }
+    .urgent-pulse {
+      animation: pulse-border 1.8s infinite;
+    }
+    /* Safe area padding for Android/iOS bottom nav */
+    .pb-safe {
+      padding-bottom: env(safe-area-inset-bottom, 0.5rem);
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 dark:bg-navy-950 dark:text-slate-100 antialiased selection:bg-blue-600 selection:text-white transition-colors duration-200">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <div class="min-h-screen flex flex-col lg:flex-row pb-20 lg:pb-0">
+    <!-- ==================== DESKTOP SIDEBAR ==================== -->
+    <aside class="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-navy-900 text-slate-300 border-r border-slate-800 z-30">
+      <!-- Brand -->
+      <div class="h-16 px-5 flex items-center gap-3 border-b border-slate-800/80">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white shadow-lg shadow-blue-900/40 shrink-0">
+          <i class="fa-solid fa-compact-disc text-lg"></i>
+        </div>
+        <div class="min-w-0">
+          <h1 class="text-white font-extrabold text-base leading-none tracking-tight truncate">TireFleet <span class="text-blue-400">Pro</span></h1>
+          <p class="text-[11px] text-slate-400 mt-1 truncate">Multi-Flota • PC & Android</p>
+        </div>
+      </div>
+
+      <!-- Nav Links -->
+      <nav class="flex-1 p-3 space-y-1 overflow-y-auto" id="desktop-nav">
+        <button data-tab="dashboard" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium bg-blue-600 text-white shadow-sm transition">
+          <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+          <span>Dashboard</span>
+        </button>
+        <button data-tab="clients" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-navy-800 hover:text-white transition">
+          <i class="fa-solid fa-building w-5 text-center text-sky-400"></i>
+          <span>Clientes / Flotas</span>
+          <span id="badge-clients" class="ml-auto bg-slate-700 text-slate-200 text-[11px] font-bold px-2 py-0.5 rounded-full">0</span>
+        </button>
+        <button data-tab="inventory" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-navy-800 hover:text-white transition">
+          <i class="fa-solid fa-warehouse w-5 text-center"></i>
+          <span>Inventario Llantas</span>
+        </button>
+        <button data-tab="fleet" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-navy-800 hover:text-white transition">
+          <i class="fa-solid fa-truck-fast w-5 text-center"></i>
+          <span>Unidades y Desgaste</span>
+          <span id="badge-alerts-desk" class="ml-auto bg-red-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full">0</span>
+        </button>
+        <button data-tab="appointments" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-navy-800 hover:text-white transition">
+          <i class="fa-solid fa-calendar-check w-5 text-center"></i>
+          <span>Agenda y Renovados</span>
+        </button>
+        <button data-tab="incidents" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-navy-800 hover:text-white transition">
+          <i class="fa-solid fa-triangle-exclamation w-5 text-center text-amber-400"></i>
+          <span>Siniestros en Ruta</span>
+        </button>
+        <button data-tab="alerts" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-navy-800 hover:text-white transition">
+          <i class="fa-brands fa-whatsapp w-5 text-center text-emerald-400"></i>
+          <span>Alertas Mail / WA</span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Footer: Data & App Controls -->
+      <div class="p-3 border-t border-slate-800/80 space-y-2">
+        <button onclick="openInstallModal()" class="w-full py-2 px-3 rounded-xl text-xs font-semibold bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 border border-blue-500/30 transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-mobile-screen-button"></i> Instalar en PC / Android
+        </button>
+        <div class="grid grid-cols-2 gap-1.5">
+          <button onclick="loadDemoData()" class="py-2 px-2 rounded-lg text-[11px] font-semibold bg-navy-800 hover:bg-navy-700 text-slate-200 transition flex items-center justify-center gap-1" title="Cargar ejemplos">
+            <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i> Cargar Demo
+          </button>
+          <button onclick="confirmClearAllData()" class="py-2 px-2 rounded-lg text-[11px] font-semibold bg-navy-800 hover:bg-red-900/50 text-slate-300 hover:text-red-300 transition flex items-center justify-center gap-1" title="Limpiar base de datos">
+            <i class="fa-solid fa-trash-can"></i> Limpiar Todo
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ==================== MAIN CONTENT AREA ==================== -->
+    <div class="flex-1 lg:pl-64 flex flex-col min-w-0">
+      <!-- Top Global Header & Client Filter -->
+      <header class="bg-white dark:bg-navy-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-3 sticky top-0 z-20 shadow-xs">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <!-- Left: Mobile Logo + Global Client Selector -->
+          <div class="flex items-center justify-between md:justify-start gap-3">
+            <div class="flex items-center gap-2 lg:hidden">
+              <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white">
+                <i class="fa-solid fa-compact-disc"></i>
+              </div>
+              <span class="font-extrabold text-base tracking-tight">TireFleet <span class="text-blue-500">Pro</span></span>
+            </div>
+
+            <!-- Global Fleet Client Selector -->
+            <div class="flex items-center gap-2 bg-slate-100 dark:bg-navy-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 flex-1 md:flex-initial">
+              <i class="fa-solid fa-building text-blue-600 dark:text-blue-400 text-xs"></i>
+              <span class="text-xs font-bold text-slate-500 dark:text-slate-400 hidden sm:inline">Cliente / Flota:</span>
+              <select id="global-client-filter" onchange="setGlobalClient(this.value)" class="bg-transparent text-xs sm:text-sm font-bold text-slate-900 dark:text-white focus:outline-none pr-2 max-w-[190px] sm:max-w-[240px] truncate">
+                <option value="ALL">Todos los Clientes</option>
+              </select>
+              <button onclick="openClientModal()" class="w-6 h-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center text-xs shrink-0" title="Nuevo Cliente / Marca de Flota">
+                <i class="fa-solid fa-plus"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Right: Portability (JSON/CSV), Theme & Quick Actions -->
+          <div class="flex items-center justify-between md:justify-end gap-1.5 sm:gap-2 overflow-x-auto pb-0.5 md:pb-0">
+            <button onclick="exportBackupJSON()" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-navy-800 hover:bg-slate-200 dark:hover:bg-navy-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1.5 shrink-0 transition" title="Descargar respaldo para pasar entre PC y Android">
+              <i class="fa-solid fa-download text-blue-600"></i> <span class="hidden sm:inline">Respaldo</span> JSON
+            </button>
+            <label class="cursor-pointer px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-navy-800 hover:bg-slate-200 dark:hover:bg-navy-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1.5 shrink-0 transition" title="Cargar respaldo JSON desde PC o Android">
+              <i class="fa-solid fa-upload text-emerald-600"></i> <span>Importar</span>
+              <input type="file" accept=".json" onchange="importBackupJSON(event)" class="hidden" />
+            </label>
+            <button onclick="exportReportCSV()" class="px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold flex items-center gap-1.5 shrink-0 transition" title="Exportar reporte a Excel (CSV)">
+              <i class="fa-solid fa-file-excel"></i> <span>Excel</span>
+            </button>
+            <button onclick="toggleDarkMode()" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-navy-800 text-slate-600 dark:text-amber-400 flex items-center justify-center shrink-0 transition" title="Cambiar Tema Claro / Oscuro">
+              <i id="theme-icon" class="fa-solid fa-moon text-xs"></i>
+            </button>
+            <button onclick="openInstallModal()" class="lg:hidden w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0" title="Instalar App en Android / PC">
+              <i class="fa-solid fa-mobile-screen-button text-xs"></i>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Workspace Container -->
+      <main class="flex-1 p-4 sm:p-6 max-w-7xl w-full mx-auto space-y-6">
+
+        <!-- Empty State Welcome Banner (Shown when DB is empty) -->
+        <div id="empty-welcome-banner" class="hidden bg-gradient-to-r from-navy-900 to-blue-900 text-white rounded-2xl p-5 sm:p-6 shadow-lg border border-blue-700/40">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <span class="inline-block text-[11px] font-bold uppercase tracking-wider bg-blue-500/30 text-blue-200 px-2.5 py-0.5 rounded-full">Base de Datos Lista para Captura</span>
+              <h2 class="text-lg sm:text-xl font-extrabold">Bienvenido a TireFleet Pro (PC & Android)</h2>
+              <p class="text-xs sm:text-sm text-slate-300 max-w-2xl">
+                Comienza registrando la <strong>Empresa / Marca de Flota</strong> a la que le prestas servicio, captura tu inventario de llantas y da de alta sus unidades. Todos tus datos se guardan automáticamente en este dispositivo y puedes exportarlos en JSON para llevarlos entre PC y Android.
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-2 shrink-0">
+              <button onclick="openClientModal()" class="px-4 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-white text-xs sm:text-sm font-bold shadow transition flex items-center gap-2">
+                <i class="fa-solid fa-building"></i> 1. Registrar Cliente / Flota
+              </button>
+              <button onclick="loadDemoData()" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-semibold border border-white/20 transition flex items-center gap-2">
+                <i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i> Cargar Datos de Ejemplo
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== TAB 1: DASHBOARD ==================== -->
+        <section id="tab-dashboard" class="tab-content space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 class="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">Panel Ejecutivo de Operaciones</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400" id="dashboard-scope-label">Mostrando información consolidada de todos los clientes</p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="openIncidentModal()" class="px-3 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition">
+                <i class="fa-solid fa-burst"></i> Reportar Siniestro
+              </button>
+              <button onclick="openAppointmentModal()" class="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition">
+                <i class="fa-solid fa-calendar-plus"></i> Agendar Cita
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI Grid -->
+          <div id="kpi-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4"></div>
+
+          <!-- Charts Row -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-6 bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
+              <div class="flex items-center justify-between mb-3">
+                <div>
+                  <h3 class="font-bold text-sm sm:text-base">Costo por Kilómetro (CPK) por Marca</h3>
+                  <p class="text-xs text-slate-500">Costo estimado por cada 1,000 km recorridos</p>
+                </div>
+                <span class="text-[11px] font-bold px-2 py-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-300">MXN / 1,000 km</span>
+              </div>
+              <div class="h-60 relative">
+                <canvas id="chart-cpk-canvas"></canvas>
+              </div>
+            </div>
+
+            <div class="lg:col-span-6 bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
+              <div class="flex items-center justify-between mb-3">
+                <div>
+                  <h3 class="font-bold text-sm sm:text-base">Inventario Disponible por Sucursal / Almacén</h3>
+                  <p class="text-xs text-slate-500">Unidades físicas en almacenes propios y de clientes</p>
+                </div>
+                <button onclick="switchTab('inventory')" class="text-xs font-bold text-blue-600 hover:underline">Ver detalle →</button>
+              </div>
+              <div class="h-60 relative">
+                <canvas id="chart-stock-canvas"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Priority Alerts & Upcoming Appointments -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-7 bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-bold text-sm sm:text-base flex items-center gap-2">
+                  <i class="fa-solid fa-bell text-amber-500"></i> Llantas Próximas a Cambio (Preventivo / Urgente)
+                </h3>
+                <button onclick="switchTab('alerts')" class="text-xs font-bold text-blue-600 hover:underline">Enviar Mail / WA →</button>
+              </div>
+              <div id="dashboard-alerts-list" class="space-y-2.5"></div>
+            </div>
+
+            <div class="lg:col-span-5 bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-bold text-sm sm:text-base flex items-center gap-2">
+                  <i class="fa-solid fa-calendar-check text-emerald-500"></i> Próximas Citas de Taller / Renovado
+                </h3>
+                <button onclick="switchTab('appointments')" class="text-xs font-bold text-blue-600 hover:underline">Ver agenda →</button>
+              </div>
+              <div id="dashboard-appointments-list" class="space-y-2.5"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== TAB 2: CLIENTS / FLEET BRANDS ==================== -->
+        <section id="tab-clients" class="tab-content hidden space-y-6">
+          <div class="bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h2 class="text-lg font-extrabold">Empresas Clientes / Marcas de Flotilla</h2>
+                <p class="text-xs text-slate-500">Administra las flotas a las que les prestas servicio, sus contactos para envío de alertas y almacenes asignados</p>
+              </div>
+              <button onclick="openClientModal()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-xs self-start transition">
+                <i class="fa-solid fa-plus"></i> Nueva Empresa / Marca de Flota
+              </button>
+            </div>
+            <div id="clients-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mt-5"></div>
+          </div>
+        </section>
+
+        <!-- ==================== TAB 3: INVENTORY ==================== -->
+        <section id="tab-inventory" class="tab-content hidden space-y-6">
+          <div class="bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h2 class="text-lg font-extrabold">Inventario de Llantas (Sucursales y Almacén Cliente)</h2>
+                <p class="text-xs text-slate-500">Control por Código, Marca, Medida, Modelo, Costo, Vida Útil y Ubicación</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button onclick="openTransferModal()" class="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-navy-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-bold flex items-center gap-2 transition">
+                  <i class="fa-solid fa-right-left"></i> Traspasar Stock
+                </button>
+                <button onclick="openInventoryModal()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-xs transition">
+                  <i class="fa-solid fa-plus"></i> Agregar Llanta al Inventario
+                </button>
+              </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 my-4">
+              <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                <input type="text" id="inv-search" oninput="renderInventory()" placeholder="Buscar código, marca, medida o modelo..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-navy-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <select id="inv-filter-branch" onchange="renderInventory()" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-navy-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="ALL">Todas las Sucursales / Almacenes</option>
+              </select>
+              <select id="inv-filter-brand" onchange="renderInventory()" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-navy-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="ALL">Todas las Marcas de Llanta</option>
+              </select>
+            </div>
+
+            <!-- Responsive Table -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 dark:bg-navy-800/70">
+                    <th class="py-3 px-3">Código</th>
+                    <th class="py-3 px-3">Marca / Modelo</th>
+                    <th class="py-3 px-3">Medida</th>
+                    <th class="py-3 px-3">Sucursal / Almacén</th>
+                    <th class="py-3 px-3 text-right">Costo Unit.</th>
+                    <th class="py-3 px-3 text-center">Stock</th>
+                    <th class="py-3 px-3 text-right">Vida Útil</th>
+                    <th class="py-3 px-3 text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="inventory-tbody" class="divide-y divide-slate-100 dark:divide-slate-800 text-sm"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== TAB 4: FLEET & WEAR ==================== -->
+        <section id="tab-fleet" class="tab-content hidden space-y-6">
+          <!-- Unit Selector & Add Unit -->
+          <div class="bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Seleccionar Unidad de Flotilla</label>
+                <select id="fleet-unit-select" onchange="selectFleetUnit(this.value)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold bg-slate-50 dark:bg-navy-800 focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+              </div>
+              <div id="unit-meta-card" class="flex items-center gap-3 bg-slate-50 dark:bg-navy-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700"></div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button onclick="openNewUnitModal()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-xs transition">
+                <i class="fa-solid fa-truck-medical"></i> Alta Nueva Unidad
+              </button>
+            </div>
+          </div>
+
+          <div id="fleet-workspace" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Left: Odometer & Fixed Routes -->
+            <div class="lg:col-span-5 bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-5">
+              <div class="border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                  <i class="fa-solid fa-gauge-high text-blue-600"></i> Control de Kilometraje
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Captura manual de odómetro o suma por rutas fijas</p>
+              </div>
+
+              <!-- Odometer Card -->
+              <div class="bg-navy-900 dark:bg-navy-950 text-white rounded-xl p-4 flex items-center justify-between border border-slate-800">
+                <div>
+                  <span class="text-[11px] text-slate-400 uppercase tracking-wider">Odómetro Actual</span>
+                  <div class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-0.5" id="display-unit-km">0 km</div>
+                </div>
+                <div class="w-11 h-11 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
+                  <i class="fa-solid fa-road text-xl"></i>
+                </div>
+              </div>
+
+              <!-- A) Manual Odometer -->
+              <div class="space-y-2">
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">A) Captura Manual de Odómetro (km)</label>
+                <div class="flex gap-2">
+                  <input type="number" id="input-manual-km" placeholder="Ej. 125400" class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <button onclick="applyManualOdometer()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold transition">
+                    Guardar
+                  </button>
+                </div>
+              </div>
+
+              <!-- B) Custom Fixed Routes -->
+              <div class="space-y-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <div class="flex items-center justify-between">
+                  <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">B) Rutas Fijas (Sumar viaje con 1 clic)</label>
+                  <button onclick="openNewRouteModal()" class="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1">
+                    <i class="fa-solid fa-plus"></i> Nueva Ruta
+                  </button>
+                </div>
+                <div id="fixed-routes-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+              </div>
+
+              <!-- Status Legend -->
+              <div class="bg-slate-50 dark:bg-navy-800/70 rounded-xl p-3 border border-slate-200/80 dark:border-slate-700 space-y-1.5 text-xs">
+                <div class="font-bold">Semáforo de Desgaste:</div>
+                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500 shrink-0"></span> <span><strong>Óptimo:</strong> &gt; <span class="lbl-prev-km">5,000</span> km restantes</span></div>
+                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500 shrink-0"></span> <span><strong>Preventivo:</strong> ≤ <span class="lbl-prev-km">5,000</span> km (Aviso previo)</span></div>
+                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-600 shrink-0"></span> <span><strong>Urgente:</strong> ≤ <span class="lbl-urg-km">1,500</span> km o ≤ <span class="lbl-min-mm">4</span> mm</span></div>
+              </div>
+            </div>
+
+            <!-- Right: Interactive Axle Diagram -->
+            <div class="lg:col-span-7 bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <h3 class="font-bold text-base">Diagrama de Ejes y Posiciones de Llantas</h3>
+                  <p class="text-xs text-slate-500">Toca una posición para montar llanta del inventario, medir mm, agendar cita o reportar daño</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="unit-axle-badge" class="px-3 py-1 rounded-full bg-slate-100 dark:bg-navy-800 text-slate-700 dark:text-slate-300 text-xs font-bold"></span>
+                  <button onclick="deleteCurrentUnit()" class="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition" title="Eliminar Unidad">
+                    <i class="fa-solid fa-trash-can text-xs"></i>
+                  </button>
+                </div>
+              </div>
+              <div id="axle-diagram" class="mt-4 space-y-4"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== TAB 5: APPOINTMENTS ==================== -->
+        <section id="tab-appointments" class="tab-content hidden space-y-6">
+          <div class="bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h2 class="text-lg font-extrabold">Agenda de Citas: Cambio, Renovado y Rotación</h2>
+                <p class="text-xs text-slate-500">Programa servicios con antelación, reserva inventario y envía recordatorios por WhatsApp o Correo</p>
+              </div>
+              <button onclick="openAppointmentModal()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-xs self-start transition">
+                <i class="fa-solid fa-calendar-plus"></i> Nueva Cita
+              </button>
+            </div>
+            <div id="appointments-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mt-5"></div>
+          </div>
+        </section>
+
+        <!-- ==================== TAB 6: INCIDENTS / SINIESTROS ==================== -->
+        <section id="tab-incidents" class="tab-content hidden space-y-6">
+          <div class="bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h2 class="text-lg font-extrabold">Siniestros e Incidencias en Ruta</h2>
+                <p class="text-xs text-slate-500">Bitácora de explosiones, cortes laterales o accidentes con cálculo de kilómetros y dinero perdido</p>
+              </div>
+              <button onclick="openIncidentModal()" class="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-xs self-start transition">
+                <i class="fa-solid fa-burst"></i> Registrar Accidente / Voladura
+              </button>
+            </div>
+            <div id="incidents-container" class="space-y-4 mt-5"></div>
+          </div>
+        </section>
+
+        <!-- ==================== TAB 7: ALERTS (MAIL & WHATSAPP) ==================== -->
+        <section id="tab-alerts" class="tab-content hidden space-y-6">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Left 7 Cols: Active Alerts Action Center -->
+            <div class="lg:col-span-7 bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-4">
+              <div class="border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h2 class="text-lg font-extrabold flex items-center gap-2">
+                  <i class="fa-brands fa-whatsapp text-emerald-500"></i> Bandeja de Envío Directo (WhatsApp y Correo)
+                </h2>
+                <p class="text-xs text-slate-500">Envía avisos preventivos, alertas urgentes o recordatorios de citas directamente al contacto de cada empresa cliente o taller</p>
+              </div>
+              <div id="active-alerts-actions" class="space-y-3"></div>
+            </div>
+
+            <!-- Right 5 Cols: Thresholds & Default Recipients -->
+            <div class="lg:col-span-5 bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-4">
+              <h3 class="font-bold text-base border-b border-slate-100 dark:border-slate-800 pb-3">Reglas de Anticipación y Contactos Taller</h3>
+              <div class="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Aviso Preventivo (km antes)</label>
+                  <input type="number" id="cfg-prev-km" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Cambio Urgente (km antes)</label>
+                  <input type="number" id="cfg-urg-km" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Aviso Cita (días antes)</label>
+                  <input type="number" id="cfg-days-before" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Límite Retiro (mm)</label>
+                  <input type="number" step="0.5" id="cfg-min-mm" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+                </div>
+              </div>
+              <div class="space-y-3 pt-2 text-sm">
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Correo Principal Taller / Proveedor</label>
+                  <input type="email" id="cfg-default-email" placeholder="taller@tuempresa.com" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">WhatsApp Principal Taller (con código país)</label>
+                  <input type="text" id="cfg-default-phone" placeholder="524491234567" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+                </div>
+              </div>
+              <button onclick="saveSettings()" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition">
+                Guardar Reglas de Alertas
+              </button>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ==================== MOBILE BOTTOM NAVIGATION (ANDROID / iOS) ==================== -->
+  <nav class="lg:hidden fixed bottom-0 inset-x-0 bg-white dark:bg-navy-900 border-t border-slate-200 dark:border-slate-800 z-30 pb-safe shadow-lg">
+    <div class="grid grid-cols-6 h-16">
+      <button data-tab="dashboard" class="mob-nav-btn flex flex-col items-center justify-center gap-1 text-blue-600 font-bold text-[10px]">
+        <i class="fa-solid fa-chart-pie text-base"></i>
+        <span>Inicio</span>
+      </button>
+      <button data-tab="clients" class="mob-nav-btn flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 font-medium text-[10px]">
+        <i class="fa-solid fa-building text-base"></i>
+        <span>Clientes</span>
+      </button>
+      <button data-tab="inventory" class="mob-nav-btn flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 font-medium text-[10px]">
+        <i class="fa-solid fa-warehouse text-base"></i>
+        <span>Stock</span>
+      </button>
+      <button data-tab="fleet" class="mob-nav-btn relative flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 font-medium text-[10px]">
+        <i class="fa-solid fa-truck-fast text-base"></i>
+        <span>Flotilla</span>
+        <span id="badge-alerts-mob" class="hidden absolute top-1.5 right-3 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] font-bold flex items-center justify-center">0</span>
+      </button>
+      <button data-tab="appointments" class="mob-nav-btn flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 font-medium text-[10px]">
+        <i class="fa-solid fa-calendar-check text-base"></i>
+        <span>Citas</span>
+      </button>
+      <button data-tab="alerts" class="mob-nav-btn flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 font-medium text-[10px]">
+        <i class="fa-brands fa-whatsapp text-base"></i>
+        <span>Alertas</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ==================== MODAL CONTAINER ==================== -->
+  <div id="modal-overlay" class="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div id="modal-box" class="bg-white dark:bg-navy-900 text-slate-900 dark:text-slate-100 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-lg w-full overflow-hidden my-8"></div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // PWA DYNAMIC MANIFEST (PC & ANDROID INSTALLABILITY)
+    // =========================================================================
+    (function setupDynamicPWA() {
+      const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="#0f172a"/><circle cx="256" cy="256" r="170" fill="none" stroke="#2563eb" stroke-width="48"/><circle cx="256" cy="256" r="75" fill="#38bdf8"/></svg>`;
+      const iconUrl = 'data:image/svg+xml;base64,' + btoa(svgIcon);
+      const manifest = {
+        name: 'TireFleet Pro - Control de Llantas y Flotilla',
+        short_name: 'TireFleet Pro',
+        description: 'Gestión multi-cliente de inventario de llantas, desgaste por km, citas y siniestros.',
+        start_url: './',
+        display: 'standalone',
+        background_color: '#0f172a',
+        theme_color: '#0f172a',
+        icons: [
+          { src: iconUrl, sizes: '192x192', type: 'image/svg+xml' },
+          { src: iconUrl, sizes: '512x512', type: 'image/svg+xml' }
+        ]
+      };
+      const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+      const link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = URL.createObjectURL(blob);
+      document.head.appendChild(link);
+    })();
+
+    // =========================================================================
+    // CONSTANTS & VEHICLE AXLE TEMPLATES
+    // =========================================================================
+    const OWN_BRANCHES = [
+      'Aguascalientes (Matriz)',
+      'Guadalajara',
+      'León',
+      'Zacatecas',
+      'Durango',
+      'Puerto Vallarta'
+    ];
+
+    const VEHICLE_TYPES = {
+      'tracto_10': {
+        label: 'Tractocamión (10 Llantas / 3 Ejes)',
+        axles: [
+          { name: 'Eje 1 - Dirección', positions: ['1-IZQ', '1-DER'] },
+          { name: 'Eje 2 - Tracción Delantera', positions: ['2-IZQ-EXT', '2-IZQ-INT', '2-DER-INT', '2-DER-EXT'] },
+          { name: 'Eje 3 - Tracción Trasera', positions: ['3-IZQ-EXT', '3-IZQ-INT', '3-DER-INT', '3-DER-EXT'] }
+        ]
+      },
+      'full_18': {
+        label: 'Tractocamión Full / Remolque (18 Llantas)',
+        axles: [
+          { name: 'Eje 1 - Dirección', positions: ['1-IZQ', '1-DER'] },
+          { name: 'Eje 2 - Tracción', positions: ['2-IZQ-EXT', '2-IZQ-INT', '2-DER-INT', '2-DER-EXT'] },
+          { name: 'Eje 3 - Tracción', positions: ['3-IZQ-EXT', '3-IZQ-INT', '3-DER-INT', '3-DER-EXT'] },
+          { name: 'Eje 4 - Arrastre 1', positions: ['4-IZQ-EXT', '4-IZQ-INT', '4-DER-INT', '4-DER-EXT'] },
+          { name: 'Eje 5 - Arrastre 2', positions: ['5-IZQ-EXT', '5-IZQ-INT', '5-DER-INT', '5-DER-EXT'] }
+        ]
+      },
+      'rabon_6': {
+        label: 'Camión Rabón / Torton (6 Llantas)',
+        axles: [
+          { name: 'Eje 1 - Dirección', positions: ['1-IZQ', '1-DER'] },
+          { name: 'Eje 2 - Tracción Dual', positions: ['2-IZQ-EXT', '2-IZQ-INT', '2-DER-INT', '2-DER-EXT'] }
+        ]
+      },
+      'van_6': {
+        label: 'Camioneta Reparto Pesada (6 Llantas)',
+        axles: [
+          { name: 'Eje Delantero', positions: ['DEL-IZQ', 'DEL-DER'] },
+          { name: 'Eje Trasero Dual', positions: ['TRAS-IZQ-EXT', 'TRAS-IZQ-INT', 'TRAS-DER-INT', 'TRAS-DER-EXT'] }
+        ]
+      },
+      'auto_4': {
+        label: 'Camioneta Ligera / Utilitario (4 Llantas)',
+        axles: [
+          { name: 'Eje Delantero', positions: ['DEL-IZQ', 'DEL-DER'] },
+          { name: 'Eje Trasero', positions: ['TRAS-IZQ', 'TRAS-DER'] }
+        ]
+      }
+    };
+
+    // Clean initial state ready for real user entry
+    const EMPTY_STATE = {
+      darkMode: false,
+      selectedClientId: 'ALL',
+      settings: {
+        prevKm: 5000,
+        urgKm: 1500,
+        daysBefore: 3,
+        minMm: 4.0,
+        defaultEmail: '',
+        defaultPhone: ''
+      },
+      clients: [],
+      inventory: [],
+      routes: [
+        { id: 'RUT-1', name: 'Ruta Local / Urbana', km: 120 },
+        { id: 'RUT-2', name: 'Ruta Regional', km: 380 },
+        { id: 'RUT-3', name: 'Ruta Larga Foránea', km: 850 }
+      ],
+      fleet: [],
+      appointments: [],
+      incidents: []
+    };
+
+    const DEMO_STATE = {
+      darkMode: false,
+      selectedClientId: 'ALL',
+      settings: {
+        prevKm: 5000,
+        urgKm: 1500,
+        daysBefore: 3,
+        minMm: 4.0,
+        defaultEmail: 'taller@serviciosllanteros.com',
+        defaultPhone: '524491234567'
+      },
+      clients: [
+        {
+          id: 'CLI-1',
+          name: 'Transportes del Bajío S.A.',
+          rfc: 'TBA980412XX1',
+          contact: 'Ing. Roberto Méndez',
+          email: 'rmendez@transportesbajio.com',
+          phone: '524499876543',
+          notes: 'Flota de tractocamiones y rabones. Cuentan con almacén consignado en patio.'
+        },
+        {
+          id: 'CLI-2',
+          name: 'Logística Express Occidente',
+          rfc: 'LEO120905YY2',
+          contact: 'Lic. Mariana Torres',
+          email: 'mtorres@logisticaoccidente.mx',
+          phone: '523314567890',
+          notes: 'Unidades de reparto regional Guadalajara - Aguascalientes.'
+        }
+      ],
+      inventory: [
+        { id: 'INV-1', code: 'MIC-295-80', brand: 'Michelin', model: 'X Multi Z', size: '295/80 R22.5', cost: 11800, stock: 12, expectedKm: 120000, branch: 'Aguascalientes (Matriz)', clientId: '' },
+        { id: 'INV-2', code: 'BRI-295-80', brand: 'Bridgestone', model: 'R268 Ecopia', size: '295/80 R22.5', cost: 10900, stock: 8, expectedKm: 110000, branch: 'Almacén Cliente', clientId: 'CLI-1' },
+        { id: 'INV-3', code: 'GOO-245-70', brand: 'Goodyear', model: 'KMax S', size: '245/70 R19.5', cost: 6400, stock: 10, expectedKm: 85000, branch: 'Guadalajara', clientId: '' },
+        { id: 'INV-4', code: 'CON-11R22', brand: 'Continental', model: 'HDR2', size: '11R22.5', cost: 10200, stock: 6, expectedKm: 112000, branch: 'León', clientId: '' }
+      ],
+      routes: [
+        { id: 'RUT-1', name: 'Ags - Guadalajara (Ida y Vuelta)', km: 440 },
+        { id: 'RUT-2', name: 'Ags - León (Ida y Vuelta)', km: 250 },
+        { id: 'RUT-3', name: 'Reparto Local Urbano', km: 95 }
+      ],
+      fleet: [
+        {
+          id: 'UNI-1',
+          clientId: 'CLI-1',
+          eco: 'TB-104',
+          model: 'Kenworth T680',
+          type: 'tracto_10',
+          currentKm: 248700,
+          tires: {
+            '1-IZQ': { serial: 'DOT-8841A', invCode: 'MIC-295-80', brand: 'Michelin', model: 'X Multi Z', size: '295/80 R22.5', installKm: 130000, expectedKm: 120000, initialMm: 18, currentMm: 3.8, cost: 11800 },
+            '1-DER': { serial: 'DOT-8842A', invCode: 'MIC-295-80', brand: 'Michelin', model: 'X Multi Z', size: '295/80 R22.5', installKm: 133000, expectedKm: 120000, initialMm: 18, currentMm: 4.5, cost: 11800 },
+            '2-IZQ-EXT': { serial: 'DOT-7721B', invCode: 'BRI-295-80', brand: 'Bridgestone', model: 'R268 Ecopia', size: '295/80 R22.5', installKm: 180000, expectedKm: 110000, initialMm: 19, currentMm: 10.2, cost: 10900 },
+            '2-IZQ-INT': { serial: 'DOT-7722B', invCode: 'BRI-295-80', brand: 'Bridgestone', model: 'R268 Ecopia', size: '295/80 R22.5', installKm: 180000, expectedKm: 110000, initialMm: 19, currentMm: 10.2, cost: 10900 },
+            '2-DER-INT': { serial: 'DOT-7723B', invCode: 'BRI-295-80', brand: 'Bridgestone', model: 'R268 Ecopia', size: '295/80 R22.5', installKm: 180000, expectedKm: 110000, initialMm: 19, currentMm: 10.2, cost: 10900 },
+            '2-DER-EXT': { serial: 'DOT-7724B', invCode: 'BRI-295-80', brand: 'Bridgestone', model: 'R268 Ecopia', size: '295/80 R22.5', installKm: 180000, expectedKm: 110000, initialMm: 19, currentMm: 10.2, cost: 10900 },
+            '3-IZQ-EXT': null,
+            '3-IZQ-INT': null,
+            '3-DER-INT': null,
+            '3-DER-EXT': null
+          }
+        },
+        {
+          id: 'UNI-2',
+          clientId: 'CLI-2',
+          eco: 'LEO-22',
+          model: 'Freightliner M2 106',
+          type: 'rabon_6',
+          currentKm: 118500,
+          tires: {
+            '1-IZQ': { serial: 'DOT-5501R', invCode: 'GOO-245-70', brand: 'Goodyear', model: 'KMax S', size: '245/70 R19.5', installKm: 37500, expectedKm: 85000, initialMm: 16, currentMm: 4.8, cost: 6400 },
+            '1-DER': { serial: 'DOT-5502R', invCode: 'GOO-245-70', brand: 'Goodyear', model: 'KMax S', size: '245/70 R19.5', installKm: 37500, expectedKm: 85000, initialMm: 16, currentMm: 4.9, cost: 6400 },
+            '2-IZQ-EXT': { serial: 'DOT-5503R', invCode: 'GOO-245-70', brand: 'Goodyear', model: 'KMax S', size: '245/70 R19.5', installKm: 75000, expectedKm: 85000, initialMm: 16, currentMm: 9.5, cost: 6400 },
+            '2-IZQ-INT': { serial: 'DOT-5504R', invCode: 'GOO-245-70', brand: 'Goodyear', model: 'KMax S', size: '245/70 R19.5', installKm: 75000, expectedKm: 85000, initialMm: 16, currentMm: 9.5, cost: 6400 },
+            '2-DER-INT': null,
+            '2-DER-EXT': null
+          }
+        }
+      ],
+      appointments: [
+        {
+          id: 'CIT-1',
+          clientId: 'CLI-1',
+          unitId: 'UNI-1',
+          position: '1-IZQ',
+          serviceType: 'Cambio por Llanta Nueva',
+          date: '2026-11-25',
+          time: '09:30',
+          branch: 'Aguascalientes (Matriz)',
+          invCode: 'MIC-295-80',
+          notes: 'Urgente por desgaste en dirección.'
+        }
+      ],
+      incidents: [
+        {
+          id: 'SIN-1',
+          clientId: 'CLI-1',
+          unitId: 'UNI-1',
+          position: '3-DER-EXT',
+          date: '2026-11-19',
+          cause: 'Voladura / Explosión',
+          odometer: 247500,
+          serial: 'DOT-4410X',
+          brandModel: 'Continental HDR2',
+          lostKm: 42000,
+          lostCost: 3825,
+          action: 'Reemplazo inmediato con stock',
+          notes: 'Incidente en autopista León - Aguascalientes km 52.'
+        }
+      ]
+    };
+
+    const STORAGE_KEY = 'tirefleet_pro_v2_data';
+    let state = loadInitialState();
+function startCloudSync() {
+  if (typeof window.listenCloudState !== "function") return;
+
+  window.listenCloudState((cloudData) => {
+    if (!cloudData) return;
+
+    isApplyingCloudUpdate = true;
+    state = { ...JSON.parse(JSON.stringify(EMPTY_STATE)), ...cloudData };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+    if (typeof selectedUnitId !== "undefined" && Array.isArray(state.fleet)) {
+      if (!state.fleet.some(u => u.id === selectedUnitId)) {
+        selectedUnitId = state.fleet[0]?.id || null;
+      }
+    }
+
+    if (typeof updateBadges === "function") updateBadges();
+    if (typeof render === "function") render();
+    else if (typeof renderAll === "function") renderAll();
+
+    isApplyingCloudUpdate = false;
+  });
+}
+    let selectedUnitId = state.fleet[0]?.id || null;
+    let cpkChartInstance = null;
+    let stockChartInstance = null;
+
+    function loadInitialState() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const merged = { ...JSON.parse(JSON.stringify(EMPTY_STATE)), ...parsed };
+      if (Array.isArray(merged.fleet)) {
+        merged.fleet = merged.fleet.map(u => ({
+          ...u,
+          tires: u && u.tires && typeof u.tires === "object" ? u.tires : {}
+        }));
+      }
+      return merged;
+    }
+  } catch (e) {
+    console.error('Error reading localStorage', e);
+  }
+  const fallback = JSON.parse(JSON.stringify(EMPTY_STATE));
+  if (Array.isArray(fallback.fleet)) {
+    fallback.fleet = fallback.fleet.map(u => ({
+      ...u,
+      tires: u && u.tires && typeof u.tires === "object" ? u.tires : {}
+    }));
+  }
+  return fallback;
+}
+
+    let isApplyingCloudUpdate = false;
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (typeof updateBadges === "function") {
+    updateBadges();
+  }
+
+  if (!isApplyingCloudUpdate && typeof window.saveToCloud === "function") {
+    window.saveToCloud(state).catch((err) => {
+      console.error("Error al guardar en Firebase:", err);
+    });
+  }
+}
+
+    function loadDemoData() {
+      state = JSON.parse(JSON.stringify(DEMO_STATE));
+      selectedUnitId = state.fleet[0]?.id || null;
+      saveState();
+      applyTheme();
+      renderAll();
+      showToast('Datos de ejemplo cargados. Puedes editarlos o limpiarlos cuando gustes.', 'success');
+    }
+
+    function confirmClearAllData() {
+      openModal(`
+        <div class="p-5 border-b border-slate-200 dark:border-slate-700 bg-red-600 text-white flex items-center justify-between">
+          <h3 class="font-bold text-base"><i class="fa-solid fa-triangle-exclamation mr-2"></i>Limpiar Base de Datos</h3>
+          <button onclick="closeModal()" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 space-y-4 text-sm">
+          <p>¿Deseas borrar todos los clientes, inventario, unidades y citas para iniciar completamente en blanco con tu propia información?</p>
+          <p class="text-xs text-slate-500">Sugerencia: Descarga antes un <strong>Respaldo JSON</strong> si deseas conservar lo actual.</p>
+          <div class="flex justify-end gap-2 pt-2">
+            <button onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold">Cancelar</button>
+            <button onclick="executeClearAll()" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold">Sí, Dejar en Blanco</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function executeClearAll() {
+      const keepDark = state.darkMode;
+      state = JSON.parse(JSON.stringify(EMPTY_STATE));
+      state.darkMode = keepDark;
+      selectedUnitId = null;
+      saveState();
+      closeModal();
+      renderAll();
+      showToast('Base de datos limpia. Lista para capturar tus datos reales.', 'info');
+    }
+
+    // =========================================================================
+    // JSON BACKUP & CSV EXPORT (PC <-> ANDROID PORTABILITY)
+    // =========================================================================
+    function exportBackupJSON() {
+      const dataStr = JSON.stringify(state, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateTag = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `TireFleet_Respaldo_${dateTag}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Respaldo JSON descargado. Puedes enviarlo por WhatsApp o correo para abrirlo en otro dispositivo.', 'success');
+    }
+
+    function importBackupJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (!imported || !Array.isArray(imported.inventory) || !Array.isArray(imported.fleet)) {
+            throw new Error('Formato inválido');
+          }
+          state = { ...JSON.parse(JSON.stringify(EMPTY_STATE)), ...imported };
+          selectedUnitId = state.fleet[0]?.id || null;
+          saveState();
+          applyTheme();
+          renderAll();
+          showToast('Respaldo JSON importado correctamente.', 'success');
+        } catch (err) {
+          showToast('El archivo seleccionado no es un respaldo válido de TireFleet Pro.', 'danger');
+        }
+        event.target.value = '';
+      };
+      reader.readAsText(file);
+    }
+
+    function exportReportCSV() {
+      const rows = [
+        ['Cliente / Flota', 'Unidad Eco', 'Modelo Unidad', 'Odometro Actual (km)', 'Posicion', 'Serial DOT', 'Marca Llanta', 'Modelo Llanta', 'Medida', 'Km Recorridos', 'Km Restantes Est.', 'Profundidad (mm)', 'Estado']
+      ];
+      getFilteredFleet().forEach(u => {
+        const clientName = getClientName(u.clientId);
+        Object.entries(u.tires).forEach(([pos, t]) => {
+          if (t) {
+            const a = analyzeTire(u, t);
+            rows.push([
+              `"${clientName}"`,
+              `"${u.eco}"`,
+              `"${u.model}"`,
+              u.currentKm,
+              `"${pos}"`,
+              `"${t.serial}"`,
+              `"${t.brand}"`,
+              `"${t.model}"`,
+              `"${t.size}"`,
+              a.kmUsed,
+              a.kmRemaining,
+              a.currentMm,
+              `"${a.status}"`
+            ]);
+          }
+        });
+      });
+      const csvContent = '\uFEFF' + rows.map(r => r.join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Reporte_Flotilla_Llantas_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Reporte CSV exportado para Excel.', 'success');
+    }
+
+    // =========================================================================
+    // HELPERS & WEAR CALCULATION ENGINE
+    // =========================================================================
+    function getClientById(id) {
+      return state.clients.find(c => c.id === id) || null;
+    }
+
+    function getClientName(id) {
+      if (!id) return 'Sin Cliente Asignado';
+      const c = getClientById(id);
+      return c ? c.name : 'Cliente Eliminado';
+    }
+
+    function getFilteredFleet() {
+      if (state.selectedClientId === 'ALL') return state.fleet;
+      return state.fleet.filter(u => u.clientId === state.selectedClientId);
+    }
+
+    function getFilteredInventory() {
+      if (state.selectedClientId === 'ALL') return state.inventory;
+      return state.inventory.filter(i => !i.clientId || i.clientId === state.selectedClientId);
+    }
+
+    function getFilteredAppointments() {
+      if (state.selectedClientId === 'ALL') return state.appointments;
+      return state.appointments.filter(a => a.clientId === state.selectedClientId);
+    }
+
+    function getFilteredIncidents() {
+      if (state.selectedClientId === 'ALL') return state.incidents;
+      return state.incidents.filter(inc => inc.clientId === state.selectedClientId);
+    }
+
+    function analyzeTire(unit, tire) {
+      const kmUsed = Math.max(0, unit.currentKm - tire.installKm);
+      const kmRemaining = Math.max(0, tire.expectedKm - kmUsed);
+      const pctRemaining = Math.max(0, Math.min(100, Math.round((kmRemaining / tire.expectedKm) * 100)));
+      const wearRatio = Math.min(1, kmUsed / tire.expectedKm);
+      const minMm = Number(state.settings.minMm) || 4.0;
+      const estimatedMm = Math.max(1.5, Number((tire.initialMm - wearRatio * (tire.initialMm - 2.5)).toFixed(1)));
+      const currentMm = tire.manualMm !== undefined && tire.manualMm !== null ? Number(tire.manualMm) : estimatedMm;
+      const cpk1000 = kmUsed > 0 ? ((tire.cost / kmUsed) * 1000) : ((tire.cost / tire.expectedKm) * 1000);
+
+      let status = 'OPTIMO';
+      if (kmRemaining <= state.settings.urgKm || currentMm <= minMm) {
+        status = 'URGENTE';
+      } else if (kmRemaining <= state.settings.prevKm || pctRemaining <= 20) {
+        status = 'PREVENTIVO';
+      }
+
+      return { kmUsed, kmRemaining, pctRemaining, currentMm, cpk1000, status };
+    }
+
+    function getAllAnalyzedTires(fleetList = getFilteredFleet()) {
+  const list = [];
+  (fleetList || []).forEach(unit => {
+    Object.entries(unit?.tires || {}).forEach(([pos, tire]) => {
+      if (tire) {
+        list.push({ unit, pos, tire, analysis: analyzeTire(unit, tire) });
+      }
+    });
+  });
+  return list;
+}
+
+    function formatCurrency(num) {
+      return '$' + Number(num || 0).toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
+    function formatNumber(num) {
+      return Number(num || 0).toLocaleString('es-MX');
+    }
+
+    // =========================================================================
+    // NAVIGATION, THEME & GLOBAL CLIENT SELECTOR
+    // =========================================================================
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      const target = document.getElementById(`tab-${tabId}`);
+      if (target) target.classList.remove('hidden');
+
+      // Desktop nav styles
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        if (btn.dataset.tab === tabId) {
+          btn.className = 'nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium bg-blue-600 text-white shadow-sm transition';
+        } else {
+          btn.className = 'nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-navy-800 hover:text-white transition';
+        }
+      });
+
+      // Mobile bottom nav styles
+      document.querySelectorAll('.mob-nav-btn').forEach(btn => {
+        if (btn.dataset.tab === tabId) {
+          btn.className = 'mob-nav-btn relative flex flex-col items-center justify-center gap-1 text-blue-600 dark:text-blue-400 font-bold text-[10px]';
+        } else {
+          btn.className = 'mob-nav-btn relative flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 font-medium text-[10px]';
+        }
+      });
+
+      renderAll();
+    }
+
+    document.querySelectorAll('.nav-btn, .mob-nav-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    function toggleDarkMode() {
+      state.darkMode = !state.darkMode;
+      saveState();
+      applyTheme();
+      renderCharts();
+    }
+
+    function applyTheme() {
+      const html = document.documentElement;
+      const icon = document.getElementById('theme-icon');
+      if (state.darkMode) {
+        html.classList.add('dark');
+        icon.className = 'fa-solid fa-sun text-xs';
+      } else {
+        html.classList.remove('dark');
+        icon.className = 'fa-solid fa-moon text-xs';
+      }
+    }
+
+    function renderGlobalClientSelector() {
+      const sel = document.getElementById('global-client-filter');
+      sel.innerHTML = `<option value="ALL">Todos los Clientes (${state.clients.length})</option>` +
+        state.clients.map(c => `<option value="${c.id}" ${c.id === state.selectedClientId ? 'selected' : ''}>${c.name}</option>`).join('');
+      if (state.selectedClientId !== 'ALL' && !state.clients.some(c => c.id === state.selectedClientId)) {
+        state.selectedClientId = 'ALL';
+        sel.value = 'ALL';
+      }
+    }
+
+    function setGlobalClient(clientId) {
+      state.selectedClientId = clientId;
+      const filtered = getFilteredFleet();
+      if (filtered.length > 0 && !filtered.some(u => u.id === selectedUnitId)) {
+        selectedUnitId = filtered[0].id;
+      }
+      saveState();
+      renderAll();
+    }
+
+    function updateBadges() {
+      document.getElementById('badge-clients').textContent = state.clients.length;
+      const alerts = getAllAnalyzedTires(getFilteredFleet()).filter(x => x.analysis.status !== 'OPTIMO');
+      const count = alerts.length;
+      document.getElementById('badge-alerts-desk').textContent = count;
+      const mobBadge = document.getElementById('badge-alerts-mob');
+      if (count > 0) {
+        mobBadge.textContent = count;
+        mobBadge.classList.remove('hidden');
+      } else {
+        mobBadge.classList.add('hidden');
+      }
+    }
+
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const colors = {
+        success: 'bg-emerald-600 text-white border-emerald-500',
+        warning: 'bg-amber-500 text-slate-950 border-amber-400',
+        danger: 'bg-red-600 text-white border-red-500',
+        info: 'bg-navy-900 text-white border-slate-700'
+      };
+      const icons = { success: 'fa-circle-check', warning: 'fa-triangle-exclamation', danger: 'fa-burst', info: 'fa-bell' };
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto flex items-start gap-2.5 px-4 py-3 rounded-xl shadow-xl border text-xs sm:text-sm font-medium transition-all transform -translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+      toast.innerHTML = `<i class="fa-solid ${icons[type]} mt-0.5"></i><div class="flex-1">${message}</div>`;
+      container.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.remove('-translate-y-2', 'opacity-0'));
+      setTimeout(() => {
+        toast.classList.add('opacity-0', '-translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    function openModal(html) {
+      document.getElementById('modal-box').innerHTML = html;
+      document.getElementById('modal-overlay').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.add('hidden');
+    }
+
+    document.getElementById('modal-overlay').addEventListener('click', e => {
+      if (e.target.id === 'modal-overlay') closeModal();
+    });
+
+    function openInstallModal() {
+      openModal(`
+        <div class="p-5 border-b border-slate-200 dark:border-slate-700 bg-navy-900 text-white flex items-center justify-between">
+          <h3 class="font-bold text-base"><i class="fa-solid fa-mobile-screen-button text-blue-400 mr-2"></i>Instalar TireFleet Pro en PC y Android</h3>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <div class="p-5 space-y-4 text-xs sm:text-sm">
+          <div class="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-1.5">
+            <div class="font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+              <i class="fa-brands fa-android text-lg"></i> En Celular / Tablet Android (Google Chrome):
+            </div>
+            <ol class="list-decimal list-inside space-y-1 text-slate-700 dark:text-slate-300">
+              <li>Abre este archivo o enlace en <strong>Google Chrome</strong> en tu Android.</li>
+              <li>Toca el menú de los <strong>3 puntos (⋮)</strong> arriba a la derecha.</li>
+              <li>Selecciona <strong>"Agregar a la pantalla principal"</strong> o <strong>"Instalar aplicación"</strong>.</li>
+              <li>Se creará un ícono directo en tu teléfono y abrirá a pantalla completa como app nativa.</li>
+            </ol>
+          </div>
+          <div class="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 space-y-1.5">
+            <div class="font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2">
+              <i class="fa-solid fa-laptop text-lg"></i> En Computadora PC (Chrome / Edge):
+            </div>
+            <ol class="list-decimal list-inside space-y-1 text-slate-700 dark:text-slate-300">
+              <li>Abre el archivo <code>index.html</code> en Chrome o Microsoft Edge.</li>
+              <li>Haz clic en el ícono de <strong>Instalar (+)</strong> en la barra de direcciones o en <em>Menú → Guardar y compartir → Instalar página como app</em>.</li>
+            </ol>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-100 dark:bg-navy-800 text-xs text-slate-600 dark:text-slate-300">
+            <strong>Sincronización PC ↔ Android:</strong> Usa el botón <strong>"Respaldo JSON"</strong> arriba para descargar tu base de datos, envíatelo por WhatsApp y ábrelo con el botón <strong>"Importar"</strong> en el otro dispositivo.
+          </div>
+          <div class="flex justify-end">
+            <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold">Entendido</button>
+          </div>
+        </div>
+      `);
+    }
+
+    // =========================================================================
+    // TAB 1: DASHBOARD & CHARTS
+    // =========================================================================
+    function renderDashboard() {
+      const isEmpty = state.clients.length === 0 && state.inventory.length === 0 && state.fleet.length === 0;
+      document.getElementById('empty-welcome-banner').classList.toggle('hidden', !isEmpty);
+
+      const scopeName = state.selectedClientId === 'ALL'
+        ? 'Mostrando información consolidada de todos los clientes'
+        : `Filtrado por cliente: ${getClientName(state.selectedClientId)}`;
+      document.getElementById('dashboard-scope-label').textContent = scopeName;
+
+      const inv = getFilteredInventory();
+      const flt = getFilteredFleet();
+      const apps = getFilteredAppointments();
+      const incs = getFilteredIncidents();
+      const tires = getAllAnalyzedTires(flt);
+
+      const totalStock = inv.reduce((s, i) => s + i.stock, 0);
+      const alertCount = tires.filter(t => t.analysis.status !== 'OPTIMO').length;
+
+      const kpis = [
+        { label: 'Empresas / Flotas', val: state.clients.length, icon: 'fa-building', color: 'text-sky-600 bg-sky-50 dark:bg-sky-950/60' },
+        { label: 'Unidades Flotilla', val: flt.length, icon: 'fa-truck-fast', color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/60' },
+        { label: 'Stock Llantas', val: totalStock, icon: 'fa-warehouse', color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/60' },
+        { label: 'Alertas Desgaste', val: alertCount, icon: 'fa-triangle-exclamation', color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/60' },
+        { label: 'Citas Taller', val: apps.length, icon: 'fa-calendar-check', color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60' },
+        { label: 'Siniestros Ruta', val: incs.length, icon: 'fa-burst', color: 'text-red-600 bg-red-50 dark:bg-red-950/60' }
+      ];
+
+      document.getElementById('kpi-grid').innerHTML = kpis.map(k => `
+        <div class="bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-3.5 sm:p-4 shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400">${k.label}</span>
+            <div class="w-7 h-7 rounded-lg ${k.color} flex items-center justify-center text-xs">
+              <i class="fa-solid ${k.icon}"></i>
+            </div>
+          </div>
+          <div class="text-xl sm:text-2xl font-extrabold mt-2">${k.val}</div>
+        </div>
+      `).join('');
+
+      // Priority Alerts List
+      const priority = tires.filter(t => t.analysis.status !== 'OPTIMO')
+        .sort((a, b) => a.analysis.kmRemaining - b.analysis.kmRemaining)
+        .slice(0, 5);
+
+      document.getElementById('dashboard-alerts-list').innerHTML = priority.length === 0
+        ? `<div class="text-xs text-slate-400 py-6 text-center">Sin alertas pendientes de cambio por kilometraje o milímetros.</div>`
+        : priority.map(({ unit, pos, tire, analysis }) => {
+          const isUrg = analysis.status === 'URGENTE';
+          return `
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl border ${isUrg ? 'border-red-200 dark:border-red-900/60 bg-red-50/50 dark:bg-red-950/20' : 'border-amber-200 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/20'}">
+              <div>
+                <div class="text-xs font-extrabold flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded text-[10px] ${isUrg ? 'bg-red-600 text-white' : 'bg-amber-500 text-slate-950'}">${analysis.status}</span>
+                  <span>${getClientName(unit.clientId)} • ${unit.eco} (${pos})</span>
+                </div>
+                <div class="text-[11px] text-slate-600 dark:text-slate-300 mt-1">
+                  ${tire.brand} ${tire.model} (${tire.size}) • Restan <strong>${formatNumber(analysis.kmRemaining)} km</strong> (${analysis.currentMm} mm)
+                </div>
+              </div>
+              <div class="flex gap-1.5 shrink-0">
+                <button onclick="sendWhatsAppAlert('${unit.id}', '${pos}')" class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1" title="Enviar por WhatsApp">
+                  <i class="fa-brands fa-whatsapp"></i> WA
+                </button>
+                <button onclick="openAppointmentModal('${unit.id}', '${pos}')" class="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold">
+                  Agendar
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+      // Upcoming Appointments List
+      document.getElementById('dashboard-appointments-list').innerHTML = apps.length === 0
+        ? `<div class="text-xs text-slate-400 py-6 text-center">No hay citas programadas en agenda.</div>`
+        : apps.slice(0, 5).map(app => {
+          const u = state.fleet.find(x => x.id === app.unitId);
+          return `
+            <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-navy-800/50 flex items-center justify-between gap-2">
+              <div>
+                <div class="text-xs font-bold">${u ? u.eco : 'Unidad'} • ${app.position} <span class="text-blue-600">(${app.serviceType})</span></div>
+                <div class="text-[11px] text-slate-500 mt-0.5">${getClientName(app.clientId)} • ${app.date} ${app.time} • ${app.branch}</div>
+              </div>
+              <button onclick="sendWhatsAppAppointment('${app.id}')" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-600/25 text-[11px] font-bold shrink-0">
+                <i class="fa-brands fa-whatsapp"></i> Recordar
+              </button>
+            </div>
+          `;
+        }).join('');
+
+      renderCharts();
+    }
+
+    function renderCharts() {
+      const textColor = state.darkMode ? '#cbd5e1' : '#475569';
+      const gridColor = state.darkMode ? 'rgba(148,163,184,0.1)' : 'rgba(148,163,184,0.2)';
+
+      // 1. CPK Chart
+      const inv = getFilteredInventory();
+      const brandMap = {};
+      inv.forEach(item => {
+        if (!brandMap[item.brand]) brandMap[item.brand] = { cost: 0, km: 0, n: 0 };
+        brandMap[item.brand].cost += item.cost;
+        brandMap[item.brand].km += item.expectedKm;
+        brandMap[item.brand].n += 1;
+      });
+      const brands = Object.keys(brandMap);
+      const cpkValues = brands.map(b => Number(((brandMap[b].cost / brandMap[b].km) * 1000).toFixed(2)));
+
+      const cpkCtx = document.getElementById('chart-cpk-canvas');
+      if (cpkCtx) {
+        if (cpkChartInstance) cpkChartInstance.destroy();
+        cpkChartInstance = new Chart(cpkCtx, {
+          type: 'bar',
+          data: {
+            labels: brands.length ? brands : ['Sin datos'],
+            datasets: [{
+              label: 'Costo por 1,000 km ($ MXN)',
+              data: cpkValues.length ? cpkValues : [0],
+              backgroundColor: '#2563eb',
+              borderRadius: 8
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: textColor, font: { size: 11 } }, grid: { display: false } },
+              y: { ticks: { color: textColor, font: { size: 11 } }, grid: { color: gridColor } }
+            }
+          }
+        });
+      }
+
+      // 2. Stock by Branch Chart
+      const branchMap = {};
+      inv.forEach(item => {
+        const label = item.branch === 'Almacén Cliente' && item.clientId
+          ? `Almacén ${getClientName(item.clientId)}`
+          : item.branch;
+        branchMap[label] = (branchMap[label] || 0) + item.stock;
+      });
+      const branchLabels = Object.keys(branchMap);
+      const branchVals = Object.values(branchMap);
+
+      const stockCtx = document.getElementById('chart-stock-canvas');
+      if (stockCtx) {
+        if (stockChartInstance) stockChartInstance.destroy();
+        stockChartInstance = new Chart(stockCtx, {
+          type: 'doughnut',
+          data: {
+            labels: branchLabels.length ? branchLabels : ['Sin stock'],
+            datasets: [{
+              data: branchVals.length ? branchVals : [1],
+              backgroundColor: branchVals.length
+                ? ['#2563eb', '#10b981', '#f59e0b', '#6366f1', '#ec4899', '#14b8a6', '#8b5cf6']
+                : ['#94a3b8'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: { color: textColor, font: { size: 11 }, boxWidth: 12 }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // =========================================================================
+    // TAB 2: CLIENTS / FLEET BRANDS MANAGEMENT
+    // =========================================================================
+    function renderClients() {
+      const grid = document.getElementById('clients-grid');
+      if (state.clients.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full text-center py-10 space-y-3">
+            <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950 text-blue-600 mx-auto flex items-center justify-center text-xl">
+              <i class="fa-solid fa-building"></i>
+            </div>
+            <div class="font-bold text-sm">Aún no has registrado empresas clientes</div>
+            <p class="text-xs text-slate-500 max-w-md mx-auto">Registra la marca o empresa de flotilla a la que le prestas el servicio para asociar sus unidades, inventario consignado y alertas.</p>
+            <button onclick="openClientModal()" class="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold">Registrar Primer Cliente</button>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = state.clients.map(c => {
+        const unitsCount = state.fleet.filter(u => u.clientId === c.id).length;
+        const stockCount = state.inventory.filter(i => i.clientId === c.id).reduce((s, i) => s + i.stock, 0);
+        return `
+          <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-navy-800/50 p-4 flex flex-col justify-between space-y-3">
+            <div>
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <h3 class="font-extrabold text-base text-slate-900 dark:text-white">${c.name}</h3>
+                  <span class="text-[11px] font-mono text-slate-500">${c.rfc || 'Sin RFC/ID'}</span>
+                </div>
+                <div class="flex gap-1">
+                  <button onclick="openClientModal('${c.id}')" class="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-white dark:hover:bg-navy-700" title="Editar Cliente">
+                    <i class="fa-solid fa-pen text-xs"></i>
+                  </button>
+                  <button onclick="deleteClient('${c.id}')" class="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-white dark:hover:bg-navy-700" title="Eliminar Cliente">
+                    <i class="fa-solid fa-trash text-xs"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="mt-3 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                <div><i class="fa-solid fa-user text-slate-400 w-4"></i> <strong>${c.contact || 'Sin contacto'}</strong></div>
+                <div><i class="fa-solid fa-envelope text-blue-500 w-4"></i> ${c.email || 'Sin correo'}</div>
+                <div><i class="fa-brands fa-whatsapp text-emerald-500 w-4"></i> ${c.phone || 'Sin WhatsApp'}</div>
+              </div>
+              ${c.notes ? `<p class="mt-2 text-[11px] text-slate-500 bg-white dark:bg-navy-900 p-2 rounded-lg border border-slate-200/60 dark:border-slate-700">${c.notes}</p>` : ''}
+            </div>
+            <div class="pt-3 border-t border-slate-200/70 dark:border-slate-700 flex items-center justify-between text-xs">
+              <div class="flex gap-3 font-bold">
+                <span class="text-blue-600 dark:text-blue-400">${unitsCount} Unidades</span>
+                <span class="text-emerald-600 dark:text-emerald-400">${stockCount} Stock Sitio</span>
+              </div>
+              <button onclick="setGlobalClient('${c.id}'); switchTab('fleet')" class="px-2.5 py-1 rounded-lg bg-navy-900 dark:bg-blue-600 text-white text-[11px] font-bold">
+                Ver Flota →
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openClientModal(editId = '') {
+      const c = editId ? getClientById(editId) : null;
+      openModal(`
+        <div class="p-5 border-b border-slate-200 dark:border-slate-700 bg-navy-900 text-white flex items-center justify-between">
+          <h3 class="font-bold text-base"><i class="fa-solid fa-building text-blue-400 mr-2"></i>${c ? 'Editar Cliente / Flota' : 'Registrar Nueva Empresa / Marca de Flota'}</h3>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form onsubmit="submitClient(event, '${editId}')" class="p-5 space-y-3.5 text-sm">
+          <div>
+            <label class="block text-xs font-bold mb-1">Nombre de la Empresa / Marca de Flota *</label>
+            <input required name="name" value="${c ? c.name : ''}" placeholder="Ej. Transportes del Norte S.A." class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold mb-1">RFC / Código Interno</label>
+              <input name="rfc" value="${c ? c.rfc : ''}" placeholder="Ej. TNO850101ABC" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800 uppercase" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Contacto Responsable *</label>
+              <input required name="contact" value="${c ? c.contact : ''}" placeholder="Ej. Ing. Carlos Ruiz" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold mb-1">Correo para Alertas *</label>
+              <input required type="email" name="email" value="${c ? c.email : ''}" placeholder="flota@cliente.com" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">WhatsApp (con código país) *</label>
+              <input required name="phone" value="${c ? c.phone : ''}" placeholder="Ej. 524491234567" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold mb-1">Notas / Condiciones de Servicio</label>
+            <textarea name="notes" rows="2" placeholder="Ej. Revisión semanal en patio, almacén consignado..." class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800">${c ? c.notes : ''}</textarea>
+          </div>
+          <div class="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold">Cancelar</button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold">Guardar Cliente</button>
+          </div>
+        </form>
+      `);
+    }
+
+    function submitClient(e, editId) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const payload = {
+        name: fd.get('name').trim(),
+        rfc: fd.get('rfc').trim().toUpperCase(),
+        contact: fd.get('contact').trim(),
+        email: fd.get('email').trim(),
+        phone: fd.get('phone').replace(/\D/g, ''),
+        notes: fd.get('notes').trim()
+      };
+      if (editId) {
+        const idx = state.clients.findIndex(c => c.id === editId);
+        if (idx !== -1) state.clients[idx] = { ...state.clients[idx], ...payload };
+      } else {
+        const newClient = { id: 'CLI-' + Date.now(), ...payload };
+        state.clients.push(newClient);
+        state.selectedClientId = newClient.id;
+      }
+      saveState();
+      closeModal();
+      renderAll();
+      showToast(`Cliente "${payload.name}" guardado correctamente.`, 'success');
+    }
+
+    function deleteClient(id) {
+      state.clients = state.clients.filter(c => c.id !== id);
+      if (state.selectedClientId === id) state.selectedClientId = 'ALL';
+      saveState();
+      renderAll();
+      showToast('Cliente eliminado.', 'info');
+    }
+
+    // =========================================================================
+    // TAB 3: INVENTORY MANAGEMENT
+    // =========================================================================
+    function renderInventory() {
+      const inv = getFilteredInventory();
+      const branchSel = document.getElementById('inv-filter-branch');
+      const curBranch = branchSel.value;
+      const allBranches = [...OWN_BRANCHES, 'Almacén Cliente'];
+      branchSel.innerHTML = `<option value="ALL">Todas las Sucursales / Almacenes</option>` +
+        allBranches.map(b => `<option value="${b}">${b}</option>`).join('');
+      if (curBranch) branchSel.value = curBranch;
+
+      const brandSel = document.getElementById('inv-filter-brand');
+      const curBrand = brandSel.value;
+      const brands = [...new Set(inv.map(i => i.brand))];
+      brandSel.innerHTML = `<option value="ALL">Todas las Marcas de Llanta</option>` +
+        brands.map(b => `<option value="${b}">${b}</option>`).join('');
+      if (curBrand) brandSel.value = curBrand;
+
+      const q = (document.getElementById('inv-search')?.value || '').toLowerCase();
+      const fBranch = branchSel.value;
+      const fBrand = brandSel.value;
+
+      const filtered = inv.filter(item => {
+        const matchQ = item.code.toLowerCase().includes(q) ||
+          item.brand.toLowerCase().includes(q) ||
+          item.model.toLowerCase().includes(q) ||
+          item.size.toLowerCase().includes(q);
+        const matchB = fBranch === 'ALL' || item.branch === fBranch;
+        const matchBr = fBrand === 'ALL' || item.brand === fBrand;
+        return matchQ && matchB && matchBr;
+      });
+
+      const tbody = document.getElementById('inventory-tbody');
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400 text-xs sm:text-sm">No hay llantas registradas con estos filtros. Haz clic en "Agregar Llanta al Inventario".</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(item => {
+        const locationLabel = item.branch === 'Almacén Cliente' && item.clientId
+          ? `Almacén: ${getClientName(item.clientId)}`
+          : item.branch;
+        return `
+          <tr class="hover:bg-slate-50 dark:hover:bg-navy-800/50 transition">
+            <td class="py-3 px-3 font-mono text-xs font-bold text-blue-600 dark:text-blue-400">${item.code}</td>
+            <td class="py-3 px-3">
+              <div class="font-bold">${item.brand}</div>
+              <div class="text-xs text-slate-500">${item.model}</div>
+            </td>
+            <td class="py-3 px-3 font-medium">${item.size}</td>
+            <td class="py-3 px-3">
+              <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold ${item.branch === 'Almacén Cliente' ? 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800' : 'bg-slate-100 dark:bg-navy-800 text-slate-700 dark:text-slate-300'}">
+                <i class="fa-solid fa-location-dot text-[10px]"></i> ${locationLabel}
+              </span>
+            </td>
+            <td class="py-3 px-3 text-right font-semibold">${formatCurrency(item.cost)}</td>
+            <td class="py-3 px-3 text-center">
+              <div class="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-navy-800 rounded-lg p-1">
+                <button onclick="adjustStock('${item.id}', -1)" class="w-6 h-6 rounded bg-white dark:bg-navy-700 hover:bg-red-50 text-xs font-bold shadow-2xs">-</button>
+                <span class="w-7 text-center font-extrabold ${item.stock <= 3 ? 'text-amber-600' : ''}">${item.stock}</span>
+                <button onclick="adjustStock('${item.id}', 1)" class="w-6 h-6 rounded bg-white dark:bg-navy-700 hover:bg-emerald-50 text-xs font-bold shadow-2xs">+</button>
+              </div>
+            </td>
+            <td class="py-3 px-3 text-right text-xs text-slate-500">${formatNumber(item.expectedKm)} km</td>
+            <td class="py-3 px-3 text-center">
+              <button onclick="deleteInventoryItem('${item.id}')" class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 transition" title="Eliminar SKU">
+                <i class="fa-solid fa-trash-can text-xs"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function adjustStock(id, delta) {
+      const item = state.inventory.find(i => i.id === id);
+      if (!item) return;
+      item.stock = Math.max(0, item.stock + delta);
+      saveState();
+      renderInventory();
+    }
+
+    function deleteInventoryItem(id) {
+      state.inventory = state.inventory.filter(i => i.id !== id);
+      saveState();
+      renderInventory();
+      showToast('Registro eliminado del inventario.', 'info');
+    }
+
+    function openInventoryModal() {
+      const preClient = state.selectedClientId !== 'ALL' ? state.selectedClientId : '';
+      openModal(`
+        <div class="p-5 border-b border-slate-200 dark:border-slate-700 bg-navy-900 text-white flex items-center justify-between">
+          <h3 class="font-bold text-base"><i class="fa-solid fa-plus-circle text-blue-400 mr-2"></i>Agregar Llanta al Inventario</h3>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form onsubmit="submitInventoryItem(event)" class="p-5 space-y-3.5 text-sm">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold mb-1">Código SKU *</label>
+              <input required name="code" placeholder="Ej. MIC-295-80" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800 uppercase" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Marca de Llanta *</label>
+              <input required name="brand" placeholder="Ej. Michelin" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold mb-1">Modelo / Diseño *</label>
+              <input required name="model" placeholder="Ej. X Multi Z" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Medida *</label>
+              <input required name="size" placeholder="Ej. 295/80 R22.5" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold mb-1">Sucursal / Almacén *</label>
+              <select name="branch" onchange="document.getElementById('inv-client-wrap').classList.toggle('hidden', this.value !== 'Almacén Cliente')" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800">
+                ${OWN_BRANCHES.map(b => `<option value="${b}">${b}</option>`).join('')}
+                <option value="Almacén Cliente">Almacén Cliente (En Sitio)</option>
+              </select>
+            </div>
+            <div id="inv-client-wrap" class="hidden">
+              <label class="block text-xs font-bold mb-1">Empresa Cliente *</label>
+              <select name="clientId" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800">
+                <option value="">-- Seleccionar Cliente --</option>
+                ${state.clients.map(c => `<option value="${c.id}" ${c.id === preClient ? 'selected' : ''}>${c.name}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-bold mb-1">Costo Unit. ($) *</label>
+              <input required type="number" name="cost" min="100" placeholder="10500" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Stock Inicial *</label>
+              <input required type="number" name="stock" min="1" value="4" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Vida Útil (km) *</label>
+              <input required type="number" name="expectedKm" step="1000" value="110000" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+            </div>
+          </div>
+          <div class="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold">Cancelar</button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold">Guardar en Inventario</button>
+          </div>
+        </form>
+      `);
+    }
+
+    function submitInventoryItem(e) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const branch = fd.get('branch');
+      const clientId = branch === 'Almacén Cliente' ? fd.get('clientId') : '';
+      state.inventory.unshift({
+        id: 'INV-' + Date.now(),
+        code: fd.get('code').trim().toUpperCase(),
+        brand: fd.get('brand').trim(),
+        model: fd.get('model').trim(),
+        size: fd.get('size').trim(),
+        branch,
+        clientId,
+        cost: Number(fd.get('cost')),
+        stock: Number(fd.get('stock')),
+        expectedKm: Number(fd.get('expectedKm'))
+      });
+      saveState();
+      closeModal();
+      renderAll();
+      showToast('Llanta registrada en el inventario.', 'success');
+    }
+
+    function openTransferModal() {
+      const avail = state.inventory.filter(i => i.stock > 0);
+      if (avail.length === 0) {
+        showToast('No hay stock disponible para traspasar.', 'warning');
+        return;
+      }
+      openModal(`
+        <div class="p-5 border-b border-slate-200 dark:border-slate-700 bg-navy-900 text-white flex items-center justify-between">
+          <h3 class="font-bold text-base"><i class="fa-solid fa-right-left text-blue-400 mr-2"></i>Traspasar Llantas entre Almacenes</h3>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form onsubmit="submitTransfer(event)" class="p-5 space-y-3.5 text-sm">
+          <div>
+            <label class="block text-xs font-bold mb-1">Llanta y Almacén Origen *</label>
+            <select name="srcId" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800">
+              ${avail.map(i => `<option value="${i.id}">${i.code} • ${i.brand} (${i.branch}${i.clientId ? ' - ' + getClientName(i.clientId) : ''}) [Disp: ${i.stock}]</option>`).join('')}
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold mb-1">Almacén Destino *</label>
+              <select name="destBranch" onchange="document.getElementById('tr-client-wrap').classList.toggle('hidden', this.value !== 'Almacén Cliente')" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800">
+                ${OWN_BRANCHES.map(b => `<option value="${b}">${b}</option>`).join('')}
+                <option value="Almacén Cliente">Almacén Cliente</option>
+              </select>
+            </div>
+            <div id="tr-client-wrap" class="hidden">
+              <label class="block text-xs font-bold mb-1">Cliente Destino *</label>
+              <select name="destClientId" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800">
+                ${state.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold mb-1">Cantidad a Traspasar *</label>
+            <input required type="number" name="qty" min="1" value="1" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+          </div>
+          <div class="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold">Cancelar</button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold">Realizar Traspaso</button>
+          </div>
+        </form>
+      `);
+    }
+
+    function submitTransfer(e) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const src = state.inventory.find(i => i.id === fd.get('srcId'));
+      const qty = Number(fd.get('qty'));
+      const destBranch = fd.get('destBranch');
+      const destClientId = destBranch === 'Almacén Cliente' ? (fd.get('destClientId') || '') : '';
+
+      if (!src || qty > src.stock) {
+        showToast('Cantidad mayor al stock disponible.', 'danger');
+        return;
+      }
+      src.stock -= qty;
+      const existing = state.inventory.find(i => i.code === src.code && i.branch === destBranch && i.clientId === destClientId);
+      if (existing) {
+        existing.stock += qty;
+      } else {
+        state.inventory.push({
+          ...src,
+          id: 'INV-' + Date.now(),
+          branch: destBranch,
+          clientId: destClientId,
+          stock: qty
+        });
+      }
+      saveState();
+      closeModal();
+      renderAll();
+      showToast(`Traspaso realizado: ${qty} llantas (${src.code}).`, 'success');
+    }
+
+    // =========================================================================
+    // TAB 4: FLEET, MILEAGE (MANUAL & FIXED ROUTES) & AXLE DIAGRAM
+    // =========================================================================
+    function renderFleet() {
+      const flt = getFilteredFleet();
+      const sel = document.getElementById('fleet-unit-select');
+      const workspace = document.getElementById('fleet-workspace');
+
+      if (flt.length === 0) {
+        sel.innerHTML = `<option value="">-- Sin unidades registradas --</option>`;
+        document.getElementById('unit-meta-card').innerHTML = `<span class="text-xs text-slate-400">Da de alta una unidad para comenzar</span>`;
+        workspace.classList.add('hidden');
+        return;
+      }
+
+      workspace.classList.remove('hidden');
+      sel.innerHTML = flt.map(u => `<option value="${u.id}" ${u.id === selectedUnitId ? 'selected' : ''}>${u.eco} — ${u.model} (${getClientName(u.clientId)})</option>`).join('');
+
+      const unit = flt.find(u => u.id === selectedUnitId) || flt[0];
+      selectedUnitId = unit.id;
+      const vConfig = VEHICLE_TYPES[unit.type];
+
+      document.getElementById('unit-meta-card').innerHTML = `
+        <div class="w-9 h-9 rounded-xl bg-blue-600/15 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-truck"></i>
+        </div>
+        <div class="text-xs min-w-0">
+          <div class="font-extrabold truncate">${unit.eco} • ${unit.model}</div>
+          <div class="text-slate-500 truncate"><i class="fa-solid fa-building mr-1"></i>${getClientName(unit.clientId)}</div>
+        </div>
+      `;
+
+      document.getElementById('display-unit-km').textContent = `${formatNumber(unit.currentKm)} km`;
+      document.getElementById('input-manual-km').value = unit.currentKm;
+      document.getElementById('unit-axle-badge').textContent = vConfig.label;
+
+      document.querySelectorAll('.lbl-prev-km').forEach(el => el.textContent = formatNumber(state.settings.prevKm));
+      document.querySelectorAll('.lbl-urg-km').forEach(el => el.textContent = formatNumber(state.settings.urgKm));
+      document.querySelectorAll('.lbl-min-mm').forEach(el => el.textContent = state.settings.minMm);
+
+      // Fixed Routes Buttons
+      document.getElementById('fixed-routes-grid').innerHTML = state.routes.map(r => `
+        <div class="flex items-stretch rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-50 dark:bg-navy-800">
+          <button onclick="addFixedRouteKm(${r.km}, '${r.name}')" class="flex-1 p-2.5 text-left hover:bg-blue-50 dark:hover:bg-blue-950/50 transition">
+            <div class="text-[11px] font-bold truncate">${r.name}</div>
+            <div class="text-xs font-extrabold text-blue-600 dark:text-blue-400">+${formatNumber(r.km)} km</div>
+          </button>
+          <button onclick="deleteRoute('${r.id}')" class="px-2 text-slate-400 hover:text-red-500 border-l border-slate-200 dark:border-slate-700" title="Eliminar ruta">
+            <i class="fa-solid fa-xmark text-xs"></i>
+          </button>
+        </div>
+      `).join('');
+
+      // Interactive Axle Diagram
+      document.getElementById('axle-diagram').innerHTML = vConfig.axles.map(axle => {
+        const isDual = axle.positions.length === 4;
+        const left = axle.positions.slice(0, axle.positions.length / 2);
+        const right = axle.positions.slice(axle.positions.length / 2);
+
+        const renderPos = (pos) => {
+	if (!unit.tires || typeof unit.tires !== "object") {
+	unit.tires = {};
+	}
+          const tire = unit.tires[pos];
+          if (!tire) {
+            return `
+              <div onclick="openMountTireModal('${unit.id}', '${pos}')" class="tire-node cursor-pointer rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-navy-800/40 hover:border-blue-500 p-2.5 flex flex-col items-center justify-center text-center min-h-[120px]">
+                <i class="fa-solid fa-plus-circle text-slate-400 text-base mb-1"></i>
+                <span class="text-[11px] font-bold">${pos}</span>
+                <span class="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">Montar Llanta</span>
+              </div>
+            `;
+          }
+          const a = analyzeTire(unit, tire);
+          const styles = {
+            OPTIMO: { box: 'border-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/25', pill: 'bg-emerald-500 text-white', bar: 'bg-emerald-500', txt: 'Óptimo' },
+            PREVENTIVO: { box: 'border-amber-400 bg-amber-50/60 dark:bg-amber-950/30', pill: 'bg-amber-500 text-slate-950', bar: 'bg-amber-500', txt: 'Preventivo' },
+            URGENTE: { box: 'border-red-500 bg-red-50/70 dark:bg-red-950/35 urgent-pulse', pill: 'bg-red-600 text-white', bar: 'bg-red-600', txt: 'URGENTE' }
+          }[a.status];
+
+          return `
+            <div onclick="openTireActionModal('${unit.id}', '${pos}')" class="tire-node cursor-pointer rounded-xl border-2 ${styles.box} p-2.5 flex flex-col justify-between min-h-[120px]">
+              <div class="flex items-center justify-between gap-1">
+                <span class="text-[10px] font-extrabold bg-white dark:bg-navy-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">${pos}</span>
+                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${styles.pill}">${styles.txt}</span>
+              </div>
+              <div class="my-1">
+                <div class="text-xs font-bold truncate">${tire.brand} ${tire.model}</div>
+                <div class="text-[10px] font-mono text-slate-500 truncate">${tire.serial} • ${a.currentMm} mm</div>
+              </div>
+              <div>
+                <div class="flex justify-between text-[10px] font-bold mb-1">
+                  <span class="text-slate-500">Restan:</span>
+                  <span class="${a.status === 'URGENTE' ? 'text-red-600 dark:text-red-400' : ''}">${formatNumber(a.kmRemaining)} km</span>
+                </div>
+                <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                  <div class="h-full ${styles.bar}" style="width: ${a.pctRemaining}%"></div>
+                </div>
+              </div>
+            </div>
+          `;
+        };
+
+        return `
+          <div class="bg-slate-50/80 dark:bg-navy-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 p-3">
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex justify-between">
+              <span>${axle.name}</span>
+              <span>${axle.positions.length} pos.</span>
+            </div>
+            <div class="grid grid-cols-11 gap-2 items-center">
+              <div class="col-span-5 grid ${isDual ? 'grid-cols-2' : 'grid-cols-1'} gap-2">
+                ${left.map(renderPos).join('')}
+              </div>
+              <div class="col-span-1 flex flex-col items-center justify-center">
+                <div class="w-full h-2 bg-slate-700 rounded-full"></div>
+                <div class="w-2.5 h-7 bg-slate-800 rounded-xs -my-1"></div>
+              </div>
+              <div class="col-span-5 grid ${isDual ? 'grid-cols-2' : 'grid-cols-1'} gap-2">
+                ${right.map(renderPos).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectFleetUnit(id) {
+      selectedUnitId = id;
+      renderFleet();
+    }
+
+    function applyManualOdometer() {
+      const unit = state.fleet.find(u => u.id === selectedUnitId);
+      const val = Number(document.getElementById('input-manual-km').value);
+      if (!unit || isNaN(val) || val < unit.currentKm) {
+        showToast('El nuevo odómetro debe ser mayor o igual al actual.', 'warning');
+        return;
+      }
+      const diff = val - unit.currentKm;
+      unit.currentKm = val;
+      saveState();
+      renderAll();
+      showToast(`Odómetro actualizado (+${formatNumber(diff)} km).`, 'success');
+    }
+
+    function addFixedRouteKm(km, name) {
+      const unit = state.fleet.find(u => u.id === selectedUnitId);
+      if (!unit) return;
+      unit.currentKm += km;
+      saveState();
+      renderAll();
+      showToast(`+${formatNumber(km)} km sumados a ${unit.eco} (${name}).`, 'info');
+    }
+
+    function openNewRouteModal() {
+      openModal(`
+        <div class="p-5 border-b border-slate-200 dark:border-slate-700 bg-navy-900 text-white flex items-center justify-between">
+          <h3 class="font-bold text-base">Agregar Ruta Fija</h3>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form onsubmit="submitNewRoute(event)" class="p-5 space-y-3.5 text-sm">
+          <div>
+            <label class="block text-xs font-bold mb-1">Nombre de la Ruta *</label>
+            <input required name="name" placeholder="Ej. Ags - Zacatecas Redondo" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold mb-1">Kilómetros del Viaje *</label>
+            <input required type="number" name="km" min="1" placeholder="260" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+          </div>
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold">Cancelar</button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold">Guardar Ruta</button>
+          </div>
+        </form>
+      `);
+    }
+
+    function submitNewRoute(e) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      state.routes.push({
+        id: 'RUT-' + Date.now(),
+        name: fd.get('name').trim(),
+        km: Number(fd.get('km'))
+      });
+      saveState();
+      closeModal();
+      renderFleet();
+      showToast('Ruta fija agregada.', 'success');
+    }
+
+    function deleteRoute(id) {
+      state.routes = state.routes.filter(r => r.id !== id);
+      saveState();
+      renderFleet();
+    }
+
+    function openNewUnitModal() {
+      const preClient = state.selectedClientId !== 'ALL' ? state.selectedClientId : (state.clients[0]?.id || '');
+      openModal(`
+        <div class="p-5 border-b border-slate-200 dark:border-slate-700 bg-navy-900 text-white flex items-center justify-between">
+          <h3 class="font-bold text-base"><i class="fa-solid fa-truck-medical text-blue-400 mr-2"></i>Dar de Alta Unidad de Flotilla</h3>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form onsubmit="submitNewUnit(event)" class="p-5 space-y-3.5 text-sm">
+          <div>
+            <label class="block text-xs font-bold mb-1">Empresa Cliente / Marca de Flota *</label>
+            <select required name="clientId" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800">
+              ${state.clients.length === 0 ? '<option value="">-- Primero registra un Cliente --</option>' : ''}
+              ${state.clients.map(c => `<option value="${c.id}" ${c.id === preClient ? 'selected' : ''}>${c.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold mb-1">No. Económico / Placas *</label>
+              <input required name="eco" placeholder="Ej. ECO-105" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800 uppercase" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Marca / Modelo Vehículo *</label>
+              <input required name="model" placeholder="Ej. Kenworth T680" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold mb-1">Configuración de Ejes y Llantas *</label>
+            <select name="type" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800">
+              ${Object.entries(VEHICLE_TYPES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold mb-1">Kilometraje Actual (Odómetro) *</label>
+            <input required type="number" name="currentKm" min="0" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+          </div>
+          <div class="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold">Cancelar</button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold">Registrar Unidad</button>
+          </div>
+        </form>
+      `);
+    }
+
+    function submitNewUnit(e) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const clientId = fd.get('clientId');
+      if (!clientId) {
+        showToast('Selecciona o registra primero una Empresa Cliente.', 'warning');
+        return;
+      }
+      const type = fd.get('type');
+      const tires = {};
+      VEHICLE_TYPES[type].axles.forEach(ax => ax.positions.forEach(p => tires[p] = null));
+
+      const unit = {
+        id: 'UNI-' + Date.now(),
+        clientId,
+        eco: fd.get('eco').trim().toUpperCase(),
+        model: fd.get('model').trim(),
+        type,
+        currentKm: Number(fd.get('currentKm')),
+        tires
+      };
+      state.fleet.push(unit);
+      selectedUnitId = unit.id;
+      saveState();
+      closeModal();
+      renderAll();
+      showToast(`Unidad ${unit.eco} agregada.`, 'success');
+    }
+
+    function deleteCurrentUnit() {
+      const unit = state.fleet.find(u => u.id === selectedUnitId);
+      if (!unit) return;
+      state.fleet = state.fleet.filter(u => u.id !== unit.id);
+      selectedUnitId = getFilteredFleet()[0]?.id || null;
+      saveState();
+      renderAll();
+      showToast(`Unidad ${unit.eco} eliminada.`, 'info');
+    }
+
+    function openMountTireModal(unitId, pos) {
+      const unit = state.fleet.find(u => u.id === unitId);
+      const avail = state.inventory.filter(i => i.stock > 0);
+      if (avail.length === 0) {
+        showToast('No hay llantas disponibles en inventario. Registra una entrada primero.', 'warning');
+        return;
+      }
+      openModal(`
+        <div class="p-5 border-b border-slate-200 dark:border-slate-700 bg-navy-900 text-white flex items-center justify-between">
+          <h3 class="font-bold text-base">Montar Llanta en ${unit.eco} (${pos})</h3>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form onsubmit="submitMountTire(event, '${unitId}', '${pos}')" class="p-5 space-y-3.5 text-sm">
+          <div>
+            <label class="block text-xs font-bold mb-1">Seleccionar Llanta del Inventario *</label>
+            <select name="invId" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800">
+              ${avail.map(i => `<option value="${i.id}">${i.code} • ${i.brand} ${i.model} (${i.size}) — ${i.branch} [${i.stock} disp.]</option>`).join('')}
+            </select>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-bold mb-1">Serial / DOT *</label>
+              <input required name="serial" value="DOT-${Math.floor(1000 + Math.random()*9000)}" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800 font-mono uppercase" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Prof. Inicial (mm) *</label>
+              <input required type="number" step="0.5" name="initialMm" value="18" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Km Montaje *</label>
+              <input required type="number" name="installKm" value="${unit.currentKm}" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+            </div>
+          </div>
+          <div class="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold">Cancelar</button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold">Montar y Descontar Stock</button>
+          </div>
+        </form>
+      `);
+    }
+
+    function submitMountTire(e, unitId, pos) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const inv = state.inventory.find(i => i.id === fd.get('invId'));
+      const unit = state.fleet.find(u => u.id === unitId);
+      if (!inv || inv.stock <= 0 || !unit) return;
+
+      inv.stock -= 1;
+      unit.tires[pos] = {
+        serial: fd.get('serial').trim().toUpperCase(),
+        invCode: inv.code,
+        brand: inv.brand,
+        model: inv.model,
+        size: inv.size,
+        installKm: Number(fd.get('installKm')),
+        expectedKm: inv.expectedKm,
+        initialMm: Number(fd.get('initialMm')),
+        cost: inv.cost
+      };
+      saveState();
+      closeModal();
+      renderAll();
+      showToast(`Llanta montada en ${unit.eco} (${pos}). Stock descontado.`, 'success');
+    }
+
+    function openTireActionModal(unitId, pos) {
+      const unit = state.fleet.find(u => u.id === unitId);
+      const tire = unit?.tires[pos];
+      if (!tire) return;
+      const a = analyzeTire(unit, tire);
+
+      openModal(`
+        <div class="p-5 border-b border-slate-200 dark:border-slate-700 bg-navy-900 text-white flex items-center justify-between">
+          <div>
+            <h3 class="font-bold text-base">${unit.eco} • Posición ${pos}</h3>
+            <p class="text-xs text-slate-400">${tire.brand} ${tire.model} (${tire.size}) • ${tire.serial}</p>
+          </div>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 space-y-4 text-sm">
+          <div class="grid grid-cols-2 gap-3 bg-slate-50 dark:bg-navy-800 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div><span class="text-xs text-slate-500">Km Recorridos:</span><div class="font-bold">${formatNumber(a.kmUsed)} km</div></div>
+            <div><span class="text-xs text-slate-500">Km Restantes Est.:</span><div class="font-extrabold text-blue-600 dark:text-blue-400">${formatNumber(a.kmRemaining)} km (${a.pctRemaining}%)</div></div>
+            <div><span class="text-xs text-slate-500">CPK Estimado:</span><div class="font-bold">$${a.cpk1000.toFixed(2)} / 1,000 km</div></div>
+            <div>
+              <label class="block text-xs text-slate-500">Milímetros Actuales:</label>
+              <div class="flex items-center gap-1.5 mt-0.5">
+                <input type="number" step="0.5" id="edit-tire-mm" value="${a.currentMm}" class="w-20 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-navy-900 font-bold text-xs" />
+                <button onclick="saveManualMm('${unit.id}', '${pos}')" class="px-2 py-1 rounded-lg bg-slate-800 text-white text-[11px] font-bold">OK</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="closeModal(); openAppointmentModal('${unit.id}', '${pos}')" class="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-calendar-check"></i> Agendar Cita / Renovado
+            </button>
+            <button onclick="closeModal(); openMountTireModal('${unit.id}', '${pos}')" class="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-rotate"></i> Cambiar Llanta Ahora
+            </button>
+            <button onclick="closeModal(); openIncidentModal('${unit.id}', '${pos}')" class="py-2.5 px-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-burst"></i> Reportar Siniestro
+            </button>
+            <button onclick="dismountTire('${unit.id}', '${pos}')" class="py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-navy-800 text-xs font-bold flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-eject"></i> Desmontar Casco
+            </button>
+          </div>
+        </div>
+      `);
+    }
+
+    function saveManualMm(unitId, pos) {
+      const unit = state.fleet.find(u => u.id === unitId);
+      const val = Number(document.getElementById('edit-tire-mm').value);
+      if (unit && unit.tires[pos] && !isNaN(val)) {
+        unit.tires[pos].manualMm = val;
+        saveState();
+        closeModal();
+        renderAll();
+        showToast(`Medición física actualizada a ${val} mm.`, 'success');
+      }
+    }
+
+    function dismountTire(unitId, pos) {
+      const unit = state.fleet.find(u => u.id === unitId);
+      if (unit) {
+        unit.tires[pos] = null;
+        saveState();
+        closeModal();
+        renderAll();
+        showToast(`Llanta desmontada de ${unit.eco} (${pos}).`, 'info');
+      }
+    }
+
+    // =========================================================================
+    // TAB 5: APPOINTMENTS
+    // =========================================================================
+    function renderAppointments() {
+      const apps = getFilteredAppointments();
+      const container = document.getElementById('appointments-list');
+      if (apps.length === 0) {
+        container.innerHTML = `<div class="col-span-full text-center py-8 text-slate-400 text-xs sm:text-sm">No hay citas programadas.</div>`;
+        return;
+      }
+      container.innerHTML = apps.map(app => {
+        const u = state.fleet.find(x => x.id === app.unitId);
+        return `
+          <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-navy-800/50 p-4 flex flex-col justify-between space-y-3">
+            <div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="px-2.5 py-0.5 rounded-lg bg-blue-600/15 text-blue-700 dark:text-blue-300 text-xs font-extrabold">${app.serviceType}</span>
+                <span class="text-xs font-bold text-slate-500">${app.date} • ${app.time}</span>
+              </div>
+              <div class="mt-2.5">
+                <div class="font-extrabold text-sm">${u ? u.eco : 'Unidad'} • Posición ${app.position}</div>
+                <div class="text-xs text-slate-500 mt-0.5"><i class="fa-solid fa-building mr-1"></i>${getClientName(app.clientId)}</div>
+                <div class="text-xs text-slate-500 mt-0.5"><i class="fa-solid fa-warehouse mr-1"></i>Taller: <strong>${app.branch}</strong></div>
+                ${app.invCode ? `<div class="text-xs text-slate-500 mt-0.5"><i class="fa-solid fa-barcode mr-1"></i>Llanta: <strong>${app.invCode}</strong></div>` : ''}
+                ${app.notes ? `<p class="text-[11px] text-slate-500 mt-2 italic">"${app.notes}"</p>` : ''}
+              </div>
+            </div>
+            <div class="pt-3 border-t border-slate-200/70 dark:border-slate-700 flex items-center justify-between gap-2">
+              <button onclick="sendWhatsAppAppointment('${app.id}')" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-600/25 text-xs font-bold flex items-center gap-1">
+                <i class="fa-brands fa-whatsapp"></i> Avisar
+              </button>
+              <button onclick="completeAppointment('${app.id}')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">
+                Completar
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openAppointmentModal(preUnitId = '', prePos = '') {
+      const flt = getFilteredFleet();
+      if (flt.length === 0) {
+        showToast('Primero da de alta una unidad en flotilla.', 'warning');
+        return;
+      }
+      const unitId = preUnitId || flt[0].id;
+      openModal(`
+        <div class="p-5 border-b border-slate-200 dark:border-slate-700 bg-navy-900 text-white flex items-center justify-between">
+          <h3 class="font-bold text-base"><i class="fa-solid fa-calendar-plus text-blue-400 mr-2"></i>Agendar Cita de Cambio o Renovado</h3>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form onsubmit="submitAppointment(event)" class="p-5 space-y-3.5 text-sm">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold mb-1">Unidad *</label>
+              <select name="unitId" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800">
+                ${flt.map(u => `<option value="${u.id}" ${u.id === unitId ? 'selected' : ''}>${u.eco} (${getClientName(u.clientId)})</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Posición(es) *</label>
+              <input required name="position" value="${prePos || '1-IZQ'}" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800 uppercase" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold mb-1">Tipo de Servicio *</label>
+              <select name="serviceType" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800">
+                <option value="Cambio por Llanta Nueva">Cambio por Llanta Nueva</option>
+                <option value="Envío a Renovado / Casco">Envío a Renovado / Casco</option>
+                <option value="Rotación / Alineación">Rotación / Alineación</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Sucursal Taller *</label>
+              <select name="branch" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800">
+                ${OWN_BRANCHES.map(b => `<option value="${b}">${b}</option>`).join('')}
+                <option value="Patio del Cliente">Patio del Cliente</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold mb-1">Fecha *</label>
+              <input required type="date" name="date" value="${new Date().toISOString().slice(0, 10)}" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Hora *</label>
+              <input required type="time" name="time" value="10:00" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold mb-1">Llanta de Inventario (Opcional)</label>
+            <select name="invCode" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800">
+              <option value="">-- Sin reservar SKU específico --</option>
+              ${state.inventory.map(i => `<option value="${i.code}">${i.code} • ${i.brand} ${i.model} (Stock: ${i.stock})</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold mb-1">Notas</label>
+            <input name="notes" placeholder="Indicaciones para taller o operador..." class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+          </div>
+          <div class="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold">Cancelar</button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold">Agendar Cita</button>
+          </div>
+        </form>
+      `);
+    }
+
+    function submitAppointment(e) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const unit = state.fleet.find(u => u.id === fd.get('unitId'));
+      if (!unit) return;
+      state.appointments.unshift({
+        id: 'CIT-' + Date.now(),
+        clientId: unit.clientId,
+        unitId: unit.id,
+        position: fd.get('position').trim().toUpperCase(),
+        serviceType: fd.get('serviceType'),
+        date: fd.get('date'),
+        time: fd.get('time'),
+        branch: fd.get('branch'),
+        invCode: fd.get('invCode'),
+        notes: fd.get('notes').trim()
+      });
+      saveState();
+      closeModal();
+      renderAll();
+      showToast(`Cita agendada para ${unit.eco}.`, 'success');
+    }
+
+    function completeAppointment(id) {
+      state.appointments = state.appointments.filter(a => a.id !== id);
+      saveState();
+      renderAll();
+      showToast('Servicio completado y cerrado en agenda.', 'success');
+    }
+
+    // =========================================================================
+    // TAB 6: INCIDENTS / SINIESTROS
+    // =========================================================================
+    function renderIncidents() {
+      const incs = getFilteredIncidents();
+      const container = document.getElementById('incidents-container');
+      if (incs.length === 0) {
+        container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs sm:text-sm">Sin siniestros o voladuras registrados.</div>`;
+        return;
+      }
+      container.innerHTML = incs.map(inc => {
+        const u = state.fleet.find(x => x.id === inc.unitId);
+        return `
+          <div class="rounded-2xl border border-red-200 dark:border-red-900/60 bg-red-50/40 dark:bg-red-950/20 p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded bg-red-600 text-white text-xs font-bold">${u ? u.eco : 'Unidad'} • ${inc.position}</span>
+                <span class="text-xs font-bold text-slate-600 dark:text-slate-300">${getClientName(inc.clientId)}</span>
+                <span class="text-xs text-slate-500">• ${inc.date}</span>
+              </div>
+              <div class="text-sm font-extrabold pt-1">Causa: ${inc.cause} <span class="text-xs font-mono font-normal text-slate-500">(${inc.brandModel} • ${inc.serial})</span></div>
+              <p class="text-xs text-slate-600 dark:text-slate-300">${inc.notes || ''}</p>
+            </div>
+            <div class="flex items-center gap-4 bg-white dark:bg-navy-900 p-3 rounded-xl border border-red-100 dark:border-red-900/40 shrink-0">
+              <div class="text-right">
+                <div class="text-[10px] text-slate-400 uppercase">Km Perdidos</div>
+                <div class="text-sm font-extrabold text-red-600">-${formatNumber(inc.lostKm)} km</div>
+              </div>
+              <div class="h-7 w-px bg-slate-200 dark:bg-slate-700"></div>
+              <div class="text-right">
+                <div class="text-[10px] text-slate-400 uppercase">Merma Est.</div>
+                <div class="text-sm font-extrabold">${formatCurrency(inc.lostCost)}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openIncidentModal(preUnitId = '', prePos = '') {
+      const flt = getFilteredFleet();
+      if (flt.length === 0) {
+        showToast('Primero registra una unidad en flotilla.', 'warning');
+        return;
+      }
+      const unitId = preUnitId || flt[0].id;
+      openModal(`
+        <div class="p-5 border-b border-red-800 bg-red-700 text-white flex items-center justify-between">
+          <h3 class="font-bold text-base"><i class="fa-solid fa-burst mr-2"></i>Reportar Siniestro / Voladura en Ruta</h3>
+          <button onclick="closeModal()" class="text-red-200 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form onsubmit="submitIncident(event)" class="p-5 space-y-3.5 text-sm">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold mb-1">Unidad Afectada *</label>
+              <select name="unitId" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800">
+                ${flt.map(u => `<option value="${u.id}" ${u.id === unitId ? 'selected' : ''}>${u.eco} (${getClientName(u.clientId)})</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Posición Dañada *</label>
+              <input required name="position" value="${prePos || '1-DER'}" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800 uppercase" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold mb-1">Causa del Siniestro *</label>
+              <select name="cause" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800">
+                <option value="Voladura / Explosión">Voladura / Explosión</option>
+                <option value="Corte Lateral Irreparable">Corte Lateral Irreparable</option>
+                <option value="Ponchadura Irreparable">Ponchadura Irreparable</option>
+                <option value="Impacto en Bache">Impacto en Bache</option>
+                <option value="Baja Presión">Baja Presión</option>
+                <option value="Accidente Vial">Accidente Vial</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Fecha *</label>
+              <input required type="date" name="date" value="${new Date().toISOString().slice(0, 10)}" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold mb-1">Acción Inmediata *</label>
+            <select name="repInvId" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800">
+              <option value="APPOINTMENT">Dar de baja llanta y agendar cita urgente</option>
+              <option value="DISMOUNT">Solo dar de baja (dejar posición vacía)</option>
+              ${state.inventory.filter(i => i.stock > 0).map(i => `<option value="${i.id}">Reemplazar ahora con: ${i.code} (${i.brand} • ${i.stock} disp.)</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold mb-1">Detalles / Ubicación en Carretera</label>
+            <textarea name="notes" rows="2" placeholder="Ej. Km 40 autopista, operador reporta corte por varilla..." class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-navy-800"></textarea>
+          </div>
+          <div class="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold">Cancelar</button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-red-600 text-white font-bold">Registrar Siniestro</button>
+          </div>
+        </form>
+      `);
+    }
+
+    function submitIncident(e) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const unit = state.fleet.find(u => u.id === fd.get('unitId'));
+      if (!unit) return;
+      const pos = fd.get('position').trim().toUpperCase();
+      const damaged = unit.tires[pos];
+
+      let lostKm = 0, lostCost = 0, serial = 'N/A', brandModel = 'Sin registro';
+      if (damaged) {
+        const a = analyzeTire(unit, damaged);
+        lostKm = a.kmRemaining;
+        lostCost = Math.round((lostKm / damaged.expectedKm) * damaged.cost);
+        serial = damaged.serial;
+        brandModel = `${damaged.brand} ${damaged.model}`;
+      }
+
+      const actionVal = fd.get('repInvId');
+      if (actionVal === 'APPOINTMENT') {
+        unit.tires[pos] = null;
+        state.appointments.unshift({
+          id: 'CIT-' + Date.now(),
+          clientId: unit.clientId,
+          unitId: unit.id,
+          position: pos,
+          serviceType: 'Reposición Urgente Siniestro',
+          date: fd.get('date'),
+          time: 'URGENTE',
+          branch: 'Aguascalientes (Matriz)',
+          invCode: '',
+          notes: `Siniestro: ${fd.get('cause')}`
+        });
+      } else if (actionVal === 'DISMOUNT') {
+        unit.tires[pos] = null;
+      } else {
+        const inv = state.inventory.find(i => i.id === actionVal);
+        if (inv && inv.stock > 0) {
+          inv.stock -= 1;
+          unit.tires[pos] = {
+            serial: 'DOT-' + Math.floor(1000 + Math.random()*9000),
+            invCode: inv.code,
+            brand: inv.brand,
+            model: inv.model,
+            size: inv.size,
+            installKm: unit.currentKm,
+            expectedKm: inv.expectedKm,
+            initialMm: 18,
+            cost: inv.cost
+          };
+        }
+      }
+
+      state.incidents.unshift({
+        id: 'SIN-' + Date.now(),
+        clientId: unit.clientId,
+        unitId: unit.id,
+        position: pos,
+        date: fd.get('date'),
+        cause: fd.get('cause'),
+        odometer: unit.currentKm,
+        serial,
+        brandModel,
+        lostKm,
+        lostCost,
+        notes: fd.get('notes').trim()
+      });
+
+      saveState();
+      closeModal();
+      renderAll();
+      showToast(`Siniestro registrado en ${unit.eco} (${pos}).`, 'danger');
+    }
+
+    // =========================================================================
+    // TAB 7: ALERTS & DIRECT WHATSAPP / EMAIL SENDERS
+    // =========================================================================
+    function renderAlertsTab() {
+      document.getElementById('cfg-prev-km').value = state.settings.prevKm;
+      document.getElementById('cfg-urg-km').value = state.settings.urgKm;
+      document.getElementById('cfg-days-before').value = state.settings.daysBefore;
+      document.getElementById('cfg-min-mm').value = state.settings.minMm;
+      document.getElementById('cfg-default-email').value = state.settings.defaultEmail;
+      document.getElementById('cfg-default-phone').value = state.settings.defaultPhone;
+
+      const tires = getAllAnalyzedTires(getFilteredFleet()).filter(t => t.analysis.status !== 'OPTIMO');
+      const container = document.getElementById('active-alerts-actions');
+
+      if (tires.length === 0) {
+        container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs sm:text-sm">No hay llantas en umbral preventivo o urgente en este momento.</div>`;
+        return;
+      }
+
+      container.innerHTML = tires.map(({ unit, pos, tire, analysis }) => {
+        const isUrg = analysis.status === 'URGENTE';
+        const client = getClientById(unit.clientId);
+        return `
+          <div class="p-3.5 rounded-xl border ${isUrg ? 'border-red-200 dark:border-red-900 bg-red-50/40 dark:bg-red-950/20' : 'border-amber-200 dark:border-amber-900 bg-amber-50/40 dark:bg-amber-950/20'} flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isUrg ? 'bg-red-600 text-white' : 'bg-amber-500 text-slate-950'}">${analysis.status}</span>
+                <span class="text-xs font-extrabold">${client ? client.name : 'Cliente'} • ${unit.eco} (${pos})</span>
+              </div>
+              <div class="text-xs text-slate-600 dark:text-slate-300">
+                ${tire.brand} ${tire.model} (${tire.size}) • Restan <strong>${formatNumber(analysis.kmRemaining)} km</strong> (${analysis.currentMm} mm)
+              </div>
+              <div class="text-[11px] text-slate-500">
+                Contacto: ${client?.phone || state.settings.defaultPhone || 'Sin teléfono'} | ${client?.email || state.settings.defaultEmail || 'Sin correo'}
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-1.5 shrink-0">
+              <button onclick="sendWhatsAppAlert('${unit.id}', '${pos}')" class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5">
+                <i class="fa-brands fa-whatsapp"></i> WhatsApp
+              </button>
+              <button onclick="sendEmailAlert('${unit.id}', '${pos}')" class="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5">
+                <i class="fa-solid fa-envelope"></i> Correo
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function saveSettings() {
+      state.settings.prevKm = Number(document.getElementById('cfg-prev-km').value) || 5000;
+      state.settings.urgKm = Number(document.getElementById('cfg-urg-km').value) || 1500;
+      state.settings.daysBefore = Number(document.getElementById('cfg-days-before').value) || 3;
+      state.settings.minMm = Number(document.getElementById('cfg-min-mm').value) || 4.0;
+      state.settings.defaultEmail = document.getElementById('cfg-default-email').value.trim();
+      state.settings.defaultPhone = document.getElementById('cfg-default-phone').value.replace(/\D/g, '');
+      saveState();
+      renderAll();
+      showToast('Configuración de alertas guardada.', 'success');
+    }
+
+    function buildTireAlertText(unit, pos) {
+      const tire = unit.tires[pos];
+      const a = analyzeTire(unit, tire);
+      const client = getClientById(unit.clientId);
+      const tipo = a.status === 'URGENTE' ? 'ALERTA URGENTE DE CAMBIO' : 'AVISO PREVENTIVO DE LLANTA';
+      return `*TIREFLEET PRO - ${tipo}*\n` +
+        `Empresa/Flota: ${client ? client.name : 'Flotilla'}\n` +
+        `Unidad: ${unit.eco} (${unit.model})\n` +
+        `Posición: ${pos}\n` +
+        `Llanta: ${tire.brand} ${tire.model} (${tire.size}) | DOT: ${tire.serial}\n` +
+        `Vida restante est.: ${formatNumber(a.kmRemaining)} km (${a.currentMm} mm)\n` +
+        `Favor de confirmar cita de servicio con ${state.settings.daysBefore} días de antelación.`;
+    }
+
+    function sendWhatsAppAlert(unitId, pos) {
+      const unit = state.fleet.find(u => u.id === unitId);
+      if (!unit || !unit.tires[pos]) return;
+      const client = getClientById(unit.clientId);
+      const phone = (client && client.phone) ? client.phone : state.settings.defaultPhone;
+      const text = encodeURIComponent(buildTireAlertText(unit, pos));
+      const url = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
+      window.open(url, '_blank');
+    }
+
+    function sendEmailAlert(unitId, pos) {
+      const unit = state.fleet.find(u => u.id === unitId);
+      if (!unit || !unit.tires[pos]) return;
+      const client = getClientById(unit.clientId);
+      const email = (client && client.email) ? client.email : state.settings.defaultEmail;
+      const subject = encodeURIComponent(`Aviso Mantenimiento Llantas - ${unit.eco} (${pos})`);
+      const body = encodeURIComponent(buildTireAlertText(unit, pos).replace(/\*/g, ''));
+      window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+    }
+
+    function sendWhatsAppAppointment(appId) {
+      const app = state.appointments.find(a => a.id === appId);
+      if (!app) return;
+      const u = state.fleet.find(x => x.id === app.unitId);
+      const client = getClientById(app.clientId);
+      const phone = (client && client.phone) ? client.phone : state.settings.defaultPhone;
+      const msg = `*RECORDATORIO DE CITA - TIREFLEET PRO*\n` +
+        `Cliente: ${client ? client.name : 'Flotilla'}\n` +
+        `Unidad: ${u ? u.eco : 'Unidad'} | Posición: ${app.position}\n` +
+        `Servicio: ${app.serviceType}\n` +
+        `Fecha y Hora: ${app.date} a las ${app.time}\n` +
+        `Lugar: ${app.branch}`;
+      const url = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+      window.open(url, '_blank');
+    }
+
+    // =========================================================================
+    // MASTER RENDER & INIT
+    // =========================================================================
+    function renderAll() {
+      renderGlobalClientSelector();
+      updateBadges();
+      renderDashboard();
+      renderClients();
+      renderInventory();
+      renderFleet();
+      renderAppointments();
+      renderIncidents();
+      renderAlertsTab();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      applyTheme();
+      renderAll();
+    });
+  </script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  const firebaseConfig = {
+  apiKey: "AIzaSyCy0rq4PBX74ZI86fl84xksnYlgbrHN_BA",
+  authDomain: "tirefleet-pro.firebaseapp.com",
+  databaseURL: "https://tirefleet-pro-default-rtdb.firebaseio.com",
+  projectId: "tirefleet-pro",
+  storageBucket: "tirefleet-pro.firebasestorage.app",
+  messagingSenderId: "352245650245",
+  appId: "1:352245650245:web:ed5dfae7c4128beae1642c",
+  measurementId: "G-Y7M956VFM6"
+};
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const stateRef = ref(db, "tirefleet_state");
+
+  window.saveToCloud = function(appState) {
+    return set(stateRef, appState);
+  };
+
+  window.listenCloudState = function(onDataCallback) {
+    onValue(stateRef, (snapshot) => {
+      if (snapshot.exists()) {
+        onDataCallback(snapshot.val());
+      }
+    });
+  };
+
+  if (typeof startCloudSync === "function") {
+    startCloudSync();
+  }
+</script>
+</body>
+</html>
